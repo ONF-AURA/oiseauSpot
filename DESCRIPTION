@@ -27,3 +27,5 @@ Suggests:
     rmarkdown,
     knitr
 VignetteBuilder: knitr
+URL: https://github.com/ONF-AURA/oiseauSpot
+BugReports: https://github.com/ONF-AURA/oiseauSpot/issues
