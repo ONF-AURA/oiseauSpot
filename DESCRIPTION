@@ -1,0 +1,29 @@
+Package: oiseauSpot
+Type: Package
+Title: module de traitement des images SPOT6/7 de la plateforme OISEAU
+Version: 0.1.0
+Author: Stéphane Dumas
+Maintainer: <stephane.dumas@onf.fr>
+Description: Traitement d'images SPOT6/7, 
+    détection de changements à l'échelle de la couronne
+    mise à jour MNH.
+License: MIT + file LICENSE
+Encoding: UTF-8
+LazyData: true
+Imports: 
+    dplyr,
+    ggplot2,
+    insol,
+    lidR,
+    magrittr,
+    methods,
+    purrr,
+    raster,
+    sf,
+    stringr,
+    terra
+RoxygenNote: 7.1.2
+Suggests: 
+    rmarkdown,
+    knitr
+VignetteBuilder: knitr
