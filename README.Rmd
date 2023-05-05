@@ -1,0 +1,241 @@
+---
+output: github_document
+---
+
+---
+title: "oiseauSpot"
+output: github_document
+vignette: >
+  %\VignetteIndexEntry{oiseauSpot}
+  %\VignetteEncoding{UTF-8}
+  %\VignetteEngine{knitr::rmarkdown}
+editor_options: 
+  chunk_output_type: console
+---
+
+```{r, include = FALSE}
+knitr::opts_chunk$set(
+  collapse = TRUE,
+  comment = "#>",
+  fig.width = 8,
+  fig.height = 6, warning = FALSE, message = FALSE
+)
+
+library(oiseauSpot)
+
+```
+
+
+**oiseauSpot** combine images spot6/7 et MNT/MNH afin d'estimer une mise à jour annuelle du MNH par défalcation des houppiers morts ou exploités.  
+
+## Fonction intégrée  
+
+La fonction **spot_maj_mnh** permet de réaliser l'ensemble du processus de mise à jour d'un MNH de façon interactive:  
+
+```{r, eval=FALSE}
+
+spot_maj_mnh(ext, dos_spot, path_data, path_mnh, an_mnh, an_fin)
+
+```
+
+La suite décrit les étapes de ce processus et les fonctions pouvant être utiles à d'autres tâches.  
+
+
+## Données en entrée  
+
+- un raster de **MNH** à résolution de 1m (facultatif)   
+- une **série temporelle d'images Spot** débutant au moins 1 an avant la date d'acquisition du MNH  
+- un shapefile de polygones à extraire, comportant un champ **ug**
+
+### Extraction des images spot6/7
+
+Toutes vos images spot brutes doivent être stockée dans un même dossier.  
+
+```{r, eval=FALSE}
+
+spot_data(dos_spot, roi, destpath, buffer = 100)
+
+```
+
+Dans le dossier de destination seront écrites les images de toutes les dates trouvées dans le répertoire dos_spot, découpées selon l'emprise roi (par exemple la forêt).  
+
+### Préparation des données  
+
+```{r}
+
+path_data <- file.path(system.file(package = "oiseauSpot"), "extdata")
+
+# chemins vers les images SPOT 4 bandes à résolution 1.5m
+path_spots <- list.files(path_data, pattern = "spot", full.names = TRUE)
+names(path_spots) <- stringr::str_remove_all(basename(path_spots), "[a-z]|\\.")
+
+# !!! nommer la liste des chemins avec l'année de prise de vue
+path_spots
+
+# chemin vers le MNH à résolution 1m, levé en 2021
+path_mnh <- list.files(
+  file.path(system.file(package = "oiseauSpot"), "extdata"), pattern = "mnh", full.names = TRUE
+)
+an_mnh <- 2021
+
+# shapefile des UG
+shp <- sf::st_read(file.path(path_data, "ugs.shp"))
+
+# Choix de l'UG à traiter
+ugc <- "3 u"
+
+ext <- shp %>% dplyr::filter(ug == ugc)
+
+# Tampon à appliquer autour de l'UG
+buffer <- 10
+
+```
+
+## Visualisation des images Spot  
+
+```{r, fig.height=4}
+
+spots <- spot_get(paths = path_spots, ext = ext, buffer = buffer)
+spot_plotRGB(spots, mask = TRUE, overlay = ext)
+
+```
+
+## Identification des couronnes  
+
+```{r, warning=FALSE}
+
+cr <- spot_crowns(path_mnh = path_mnh, ext = ext, buffer = buffer)
+
+terra::plot(cr)
+```
+
+## Evaluation de la disparition des couronnes  
+
+### Différence de réflectance  
+
+L'objectif est d'identifier les couronnes ayant subi une forte perte d'activité chlorophyllienne entre 2021 et 2022.  
+
+Pour ces 2 dates, un indice de réflectance est calculé. Après normalisation des deux images, la différence d'indices est calculée.  
+
+*Exemple du résultat obtenu avec plusieurs indices*:
+
+```{r}
+
+indices <- list(NDVI = "(spot$ir - spot$r) / (spot$ir + spot$r)",
+                logRatio = "log(spot$ir / spot$r)",
+                IPVI = "0.5 * spot$ir / spot$ir + spot$r * ((spot$r - spot$g) / (spot$r + spot$g) + 1)",
+                MCARI1 = "1.2 * (2.5 * (spot$ir - spot$r) - 1.3 * (spot$ir - spot$g))"
+)
+
+layout(matrix(c(1:4), nrow = 2))
+
+for(.x in names(indices)){
+  
+  diff <- spot_differences(paths = path_spots, ext = ext, an = 2021, buffer = buffer, path_mnh = path_mnh, an_mnh = an_mnh, formula = indices[.x])
+  
+  terra::plot(diff[[2]]-diff[[1]], col = colorRampPalette(c("green", "yellow", "red"))(20),
+              main = .x)
+}
+
+```
+
+Voir plus d'indices sur https://www.indexdatabase.de/db/s-single.php?id=173  
+
+### Extraction des arbres morts sur pied cartographiés par le LiDAR 
+
+L'enjeu est d'identifier à l'année du LiDAR un seuil de l'indice distinguant les arbres vivants des arbres morts.
+
+```{r}
+diff <- spot_differences(paths = path_spots, ext = ext, an = 2021, buffer = buffer, path_mnh = path_mnh, an_mnh = an_mnh, formula = indices["NDVI"]) 
+
+spot_plotDiff(diff)
+
+```
+
+Aux vues de la carte de l'évolution du NDVI, on estime visuellement la limite à 1.5
+
+```{r}
+
+seuil_an0 <- 1.5    
+
+# rem: masque des couronnes à retirer du MNH
+
+mask_mnh2021 <- spot_perturbation(seuil_an0, diff = diff, liste_spots = spots, an = 2021, overlay = ext, mask = TRUE)
+
+
+```
+
+
+### Calibration du seuil de disparition  
+
+L'enjeu est d'identifier un seuil de différence d'indice à partir duquel une couronne peut être considérée comme disparue (morte ou exploitée).
+
+
+```{r}
+
+diff <- spot_differences(paths = path_spots, ext = ext, an = 2022, buffer = buffer, path_mnh = path_mnh, an_mnh = an_mnh, formula = indices["NDVI"], mask_mnh = mask_mnh2021) 
+
+spot_plotDiff(diff)
+
+mask_mnh2022 <- spot_perturbation(2, diff = diff,liste_spots = spots, an = 2022, overlay = ext, mask = TRUE)
+
+```
+
+## Mise à jour du MNH et cartographie des trouées  
+
+### MNH  
+
+
+Les zones où les couronnes ont disparu sont considérées comme ouvertes. L'hypothèse est donc posée que les arbres disparus ne surcimaient pas d'autres couronnes.  
+
+```{r, fig.height=4}
+
+layout(matrix(c(1:3), nrow = 1))
+
+pal <- colorRampPalette(c("white", "red"))(20)
+
+mnh2021 <- terra::rast(path_mnh) %>% terra::crop(ext) %>% terra::mask(ext %>% as("SpatVector"))
+terra::plot(mnh2021, axes = FALSE, main = "2021 avec morts", col = pal, legend = FALSE)
+mnh2021b <- mnh2021 * mask_mnh2021 %>% terra::crop(ext) %>% terra::mask(ext %>% as("SpatVector"))
+terra::plot(mnh2021b, axes = FALSE, legend = FALSE, main = "2021 sans morts", col = pal)
+mnh2022 <- mnh2021b * mask_mnh2022 %>% terra::crop(ext) %>% terra::mask(ext %>% as("SpatVector"))
+terra::plot(mnh2022, axes = FALSE, legend = FALSE, main = "2022", col = pal)
+
+
+```
+
+### Trouée
+
+Une trouée est définie par:  
+
+- une hauteur à laquelle on estime le couvert à la résolution de 1m (les pixels inférieurs sont "ouverts", les autres "fermés)  
+- un couvert maximal, estimé par la proportion de pixels de 1m de hauteur inférieure au seuil de renouvellement  
+- une surface minimale  
+
+```{r}
+
+trouees <- spot_trouees(mnh2022, ext, 
+                        h_min = 3, # couvert estimé à 3m 
+                        min_size = 300, # trouées de surface > 300m2
+                        cvt_max = 10 #à l'échelle de l'are, le couvert est inférieur à 10%
+)
+
+```
+
+
+### Insolation reçues dans les trouées  
+
+```{r}
+
+mnt <- terra::rast(
+  file.path(system.file(package = "oiseauSpot"), "extdata", "mnt.tif")
+) %>% terra::crop(ext %>% sf::st_buffer(buffer) %>% as("SpatVector"))
+
+insol <- spot_insolation(mnh2022, mnt, ext)
+
+layout(1)
+terra::plot(insol$tmp$insol_rege, col = colorRampPalette(c("navy", "blue", "yellow", "orange", "red"))(20))
+
+
+```
+
