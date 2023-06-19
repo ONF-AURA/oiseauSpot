@@ -9,7 +9,10 @@
 #' @export
 #'
 
-spot_data <- function(dos_spot, roi, destpath, buffer = 100){
+spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
+                      roi =  oiseauData::data_conf("shp"),
+                      destpath =  oiseauData::data_conf("path_spot_ts"),
+                      buffer =  oiseauData::data_conf("buffer")){
 
   # dos_spot = "/var/partage2/spot6"
   # img = "2021093036472556CP"
@@ -73,13 +76,15 @@ spot_data <- function(dos_spot, roi, destpath, buffer = 100){
     pansharp
   }
 
+  # ----------------------------------------------------------------
+
   Sys.umask(0)
 
   if(!dir.exists(destpath)) dir.create(destpath)
 
   tifs_img <- list.files(dos_spot, pattern = ".TIF", recursive = TRUE, full.names = TRUE)
 
-  # années
+  # années ---------------------------------------------------------------
 
   n <- basename(tifs_img)
 
@@ -92,6 +97,10 @@ spot_data <- function(dos_spot, roi, destpath, buffer = 100){
     unique
 
   ls_ext <- list() # liste' des polygones des étendues des images
+  tmpdir <- tempfile()
+  dir.create(tmpdir)
+
+  # extraction -----------------------------------------------------------------------
 
   for(d in c(date6, date7)){
 
@@ -101,7 +110,7 @@ spot_data <- function(dos_spot, roi, destpath, buffer = 100){
     multi_file <- dp[stringr::str_detect(dp, "_S6X_|MS_|S7X")]
 
     ls_ext[[length(ls_ext) + 1]] <- terra::as.polygons(terra::rast(multi_file), extent = TRUE)
-    names(ls_ext)[length(ls_ext)] <- paste0(d,"xxx", basename(dp))
+    names(ls_ext)[length(ls_ext)] <- paste0(d,"xxx", basename(dp)[1])
 
 
     if(!is.null(roi)){
@@ -145,21 +154,39 @@ spot_data <- function(dos_spot, roi, destpath, buffer = 100){
 
       pan <- terra::crop(pan_tot, roi2)
 
-      result <- pansharp(pan, multi, destination = file.path(destpath, paste0("spot", d, ".tif")))
+      dn <- as.Date(d, format = "%Y%m%d") %>% as.character()
+
+      result <- pansharp(pan, multi, destination = file.path(tmpdir, paste0(dn, ".tif")))
 
       terra::terraOptions(todisk = FALSE)
 
-      message("image", d, "créée.")
+      message("image SPOT du ", dn, " créée.")
     }
   }
 
-  ls_ext <- purrr::map(ls_ext, function(n){
-    n <- sf::st_as_sf(n)
-    sf::st_crs(n) <- 2154
-    n
+  # écriture série temporelle --------------------------------------------------
+
+  ls <- purrr::map(list.files(tmpdir, full.names = TRUE), function(x){
+    r <- terra::rast(x)
+    tm <- stringr::str_remove(basename(x), ".tif") %>% as.Date()
+    terra::time(r) <- rep(tm, 4)
+    names(r) <- c("red", "green", "blue", "ir")
+    r
   })
 
-  do.call("rbind", ls_ext)
+
+  cls <- do.call(c, ls)
+
+  col <- c("red", "green", "blue", "ir")
+  names(col) <- col
+
+  ls_cls <- purrr::map(col, ~cls[[which(names(cls) == .x)]])
+
+  tifs <- terra::sds(ls_cls)
+
+  terra::writeCDF(tifs, destpath, overwrite = TRUE)
+
+  unlink(tmpdir)
 
 }
 

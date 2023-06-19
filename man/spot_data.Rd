@@ -4,7 +4,12 @@
 \alias{spot_data}
 \title{Création image spot6/7 1.5m d'une zone}
 \usage{
-spot_data(dos_spot, roi, destpath, buffer = 100)
+spot_data(
+  dos_spot = oiseauData::data_conf("dos_spot"),
+  roi = oiseauData::data_conf("shp"),
+  destpath = oiseauData::data_conf("path_spot_ts"),
+  buffer = oiseauData::data_conf("buffer")
+)
 }
 \arguments{
 \item{dos_spot}{dossier des images spot6/7}
