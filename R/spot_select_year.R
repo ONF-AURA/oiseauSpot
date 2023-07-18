@@ -21,9 +21,9 @@ spot_select_year <- function(an,
   # Choix de l'année --------------------------------------------------------
 
   if(! an %in% ans){
-    if(isnull == "prev"){
+    if(ifnull == "prev"){
       add <- (-1)
-    }else if(isnull == "next"){
+    }else if(ifnull == "next"){
       add <- 1
     }else{
       add <- 0

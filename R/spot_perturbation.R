@@ -35,13 +35,19 @@ spot_perturbation <- function(lim, diff = NULL, ras_dif = NULL, liste_spots = NU
 
   # année précédente
 
-  an_prec <- spot_an_prec(names(liste_spots), an)
+  an_prec <- spot_an_prec(terra::time(liste_spots), an)
 
   if(!is.null(liste_spots)){
 
     # images spot utilisées
 
-    spots <- purrr::map(liste_spots[paste("spot", c(an_prec, an), sep = "")], ~ terra::crop(.x, ras_dif))
+    ans_spots <- liste_spots %>% terra::time() %>% format("%Y")
+
+    ls_sp <- list(
+      an0 = liste_spots[[which(ans_spots == an_prec)]],
+      an1 = liste_spots[[which(ans_spots == an)]]
+    )
+    spots <- purrr::map(ls_sp, ~ terra::crop(.x, ras_dif))
 
     # graph
 

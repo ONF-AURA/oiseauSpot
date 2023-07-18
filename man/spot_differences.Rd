@@ -8,8 +8,9 @@ spot_differences(
   ext = oiseauData::data_conf("shp"),
   path_spot_ts = oiseauData::data_conf("path_spot_ts"),
   path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
-  path_mnh_mask_ts = oiseauData::data_conf("path_mnh_mask_ts"),
+  path_mnh_dead_ts = oiseauData::data_conf("path_mnh_dead_ts"),
   an = oiseauData::data_conf("an1"),
+  buffer = oiseauData::data_conf("buffer"),
   spot_best_day = oiseauData::data_conf("spot_best_day"),
   formula = "log(spot$ir/spot$green)"
 )
@@ -19,11 +20,11 @@ spot_differences(
 
 \item{an}{année du MNH}
 
+\item{buffer}{buffer à appliquer à ext}
+
 \item{formula}{formule de l'indice utilisé, par défaut log(spot$ir/spot$g) où ir=infra r=rouge g=vert b=bleu. Voir https://www.indexdatabase.de/db/s-single.php?id=173}
 
 \item{paths}{liste des chemins d'images spot d'une même tuile, nommée par l'année de prise de vue}
-
-\item{buffer}{buffer à appliquer à ext}
 
 \item{path_mnh}{chemin vers le MNH (résolution 1m)}
 

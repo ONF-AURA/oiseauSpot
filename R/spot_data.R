@@ -80,7 +80,7 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
 
   Sys.umask(0)
 
-  if(!dir.exists(destpath)) dir.create(destpath)
+  if(!dir.exists(dirname(destpath))) dir.create(dirname(destpath))
 
   tifs_img <- list.files(dos_spot, pattern = ".TIF", recursive = TRUE, full.names = TRUE)
 
@@ -183,6 +183,8 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
   ls_cls <- purrr::map(col, ~cls[[which(names(cls) == .x)]])
 
   tifs <- terra::sds(ls_cls)
+
+  unlink(destpath)
 
   terra::writeCDF(tifs, destpath, overwrite = TRUE)
 

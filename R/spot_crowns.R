@@ -1,44 +1,48 @@
 #' Détection des couronnes sur MNH
 #'
-#' @param path_mnh_ts chemin du MNH
-#' @param an année du MNH utilisé
+#' @param date_mnh  du MNH utilisé
 #' @param ext polygone sf de l'étendue à détecter
+#' @param path_mnh_ts chemin du MNH
 #' @param buffer tampon à appliquer à exr
 #' @param lim_h_rege hauteur minimale des apex à détecter
 #' @param pente voir lidR::locate_trees
 #' @param intercept voir lidR::locate_trees
-#' @param path_mnh_mask_ts chemin spatraster 0/1, où 0 correspond aux couronnes disparues les années précédentes
 #'
 #' @return spatvector des couronnes
 #' @export
 #'
-spot_crowns <- function(ext = oiseauData::data_conf("shp"),
-                        path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
-                        buffer = oiseauData::data_conf("buffer"),
-                        lim_h_rege = oiseauData::data_conf("lim_h_rege"),
-                        path_mnh_mask_ts = oiseauData::data_conf("path_mnh_mask_ts"),
-                        an = oiseauData::data_conf("an1"),
-                        pente = .07,
-                        intercept = 2){
+spot_crowns <- function(
+    date_mnh,
+    ext = oiseauData::data_conf("shp"),
+    path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
+    buffer = oiseauData::data_conf("buffer"),
+    lim_h_rege = oiseauData::data_conf("lim_h_rege"),
+    pente = .07,
+    intercept = 2){
 
-  h0 <- mnh_select_year(an)
-    terra::crop(ext %>% st_buffer(buffer)) %>%
+  mnhs <- terra::rast(path_mnh_ts)
+  mnh0 <- mnhs[[as.Date(terra::time(mnhs)) == as.Date(date_mnh)]]
+
+  h0 <- mnh0 %>% terra::crop(as(ext %>% st_buffer(buffer), "SpatVector")) %>%
     terra::mask(as(ext %>% st_buffer(buffer), "SpatVector"))
 
-  if(!is.null(path_mnh_mask_ts)){
-
-    h0_msk <- terra::rast(path_mnh_mask_ts)
-
-    if(an %in% names(h0_msk)){
-      terra::subset(as.character(an)) %>%
-        terra::crop(ext %>% st_buffer(buffer)) %>%
-        terra::mask(as(ext %>% st_buffer(buffer), "SpatVector"))
-
-      h0 <- h0 * h0_msk
-    }else{
-      message("Couche de masque indisponible.")
-    }
-  }
+  # if(!is.null(path_mnh_dead_ts)){
+  #   if(file.exists(path_mnh_dead_ts)){
+  #     h0_msk <- terra::rast(path_mnh_dead_ts)
+  #     dates_msk <- terra::time(h0_msk)
+  #     dates_msk_util <- dates_msk[which(dates_msk < )]
+  #   }
+  #
+  #   if(an %in% names(h0_msk)){
+  #     terra::subset(as.character(an)) %>%
+  #       terra::crop(ext %>% st_buffer(buffer)) %>%
+  #       terra::mask(as(ext %>% st_buffer(buffer), "SpatVector"))
+  #
+  #     h0 <- h0 * h0_msk
+  #   }else{
+  #     message("Couche de masque indisponible.")
+  #   }
+  # }
 
   a <- spot_apex(h0, lim_h_rege)
 

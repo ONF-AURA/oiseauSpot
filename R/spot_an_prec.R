@@ -8,6 +8,7 @@
 #'
 spot_an_prec <- function(n, an){
   annees_dispo <- as.numeric(stringr::str_sub(n, 5, 8)) %>% sort
+  annees_dispo <- format(n, "%Y") %>% unique() %>% sort()
   an_pos <- which(annees_dispo == an)
 
   if(an_pos == 1){

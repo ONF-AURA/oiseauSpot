@@ -5,17 +5,18 @@
 \title{Détection des couronnes sur MNH}
 \usage{
 spot_crowns(
+  date_mnh,
   ext = oiseauData::data_conf("shp"),
   path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
   buffer = oiseauData::data_conf("buffer"),
   lim_h_rege = oiseauData::data_conf("lim_h_rege"),
-  path_mnh_mask_ts = oiseauData::data_conf("path_mnh_mask_ts"),
-  an = oiseauData::data_conf("an1"),
   pente = 0.07,
   intercept = 2
 )
 }
 \arguments{
+\item{date_mnh}{du MNH utilisé}
+
 \item{ext}{polygone sf de l'étendue à détecter}
 
 \item{path_mnh_ts}{chemin du MNH}
@@ -23,10 +24,6 @@ spot_crowns(
 \item{buffer}{tampon à appliquer à exr}
 
 \item{lim_h_rege}{hauteur minimale des apex à détecter}
-
-\item{path_mnh_mask_ts}{chemin spatraster 0/1, où 0 correspond aux couronnes disparues les années précédentes}
-
-\item{an}{année du MNH utilisé}
 
 \item{pente}{voir lidR::locate_trees}
 

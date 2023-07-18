@@ -6,21 +6,21 @@
 \usage{
 spot_maj_mnh(
   ext = oiseauData::data_conf("shp"),
-  dos_spot = oiseauData::data_conf("dos_spot"),
   path_spot_ts = oiseauData::data_conf("path_spot_ts"),
   path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
-  dest_masques = oiseauData::data_conf("path_mnh_mask_ts"),
+  dest_masques = oiseauData::data_conf("path_mnh_dead_ts"),
   dest_mnh = oiseauData::data_conf("path_mnh_ts"),
   buffer = oiseauData::data_conf("buffer"),
-  seuil_diff_spot = oiseauData::data_conf("seuil_diff_spot")
+  seuil_diff_spot = oiseauData::data_conf("seuil_diff_spot"),
+  replace = FALSE
 )
 }
 \arguments{
 \item{ext}{sf de la zone}
 
-\item{dos_spot}{dossier des images spot}
-
 \item{path_spot_ts}{chemin du fichier .nc d'écriture de la série temporelle}
+
+\item{path_mnh_ts}{chemin du MNH}
 
 \item{dest_masques}{chemin d'écriture du fichier raster .tif des masques}
 
@@ -31,10 +31,6 @@ spot_maj_mnh(
 \item{seuil_diff_spot}{seuil de différence à partir duquel la couronne est éliminée}
 
 \item{an_fin}{OBLOGATOIRE: dernière année à mettre à jour}
-
-\item{path_mnh}{chemin du MNH}
-
-\item{an_mnh}{année du MNH}
 
 \item{.dir}{Dossier du projet si oiseauData est utilisé. Omet tous les autres arguments sauf an_fin}
 }
