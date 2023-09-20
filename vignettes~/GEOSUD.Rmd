@@ -1,0 +1,32 @@
+---
+title: "Téléchargement des images SPOT"
+author: "Stéphane DUMAS"
+date: '2023-08-25'
+output: html_document
+---
+
+```{r setup, include=FALSE}
+knitr::opts_chunk$set(echo = FALSE)
+```
+
+site (l'utilisateur doit disposer des droits).
+
+Depuis le serveur linux xlid98-000: pas d'interface graphique --\> utiliser Xming:
+
+-   démarrer Xming sur le PC windows local
+
+-   sous PUTTY, ouvrir une session xlid98-000.onf.fr port 22 SSH Telnet: voir <https://cat.pdx.edu/platforms/windows/remote-access/xming/>
+
+-   dans la session PUTTY, taper `midori`. Le navigateur s'ouvre.
+
+-   saisir dans la barre d'adresse <https://ids-dinamis.data-terra.org/web/guest/catalog1> et s'identifier (demander un compte THEIA si besoin).
+
+-   suivre la procédure de téléchargement. Attention !
+
+    -   après avoir accepter les termes de la licence, cliquer à nouveau sur l'icône télécharger;
+
+    -   le fichier est télécharger sous votre dossier utilisateur `~/` (soit `/home/[identifiant]`) Ce dossier n'a pas assez d'espace pour recevoir les images. Dupliquez le contenu de votre dossier sous `/var/user/[identifiant]/[identifiant]` et créer un lien symbolique redirigeant vers ce dossier.
+
+-   Déplacer les paires de fichier .tar.gz (PAN + Multispectral) sous `/var/partage2/spot6/20xx` où 20xx est l'année de prise de vue.
+
+-   Créer un sous-dossier et y décompresser les 2 fichiers: commande linux `tar -xf [chemin du fichier].tar.gz`

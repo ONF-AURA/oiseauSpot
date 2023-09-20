@@ -8,10 +8,16 @@ spot_crowns(
   date_mnh,
   ext = oiseauData::data_conf("shp"),
   path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
+  path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
+  path_meta = oiseauData::data_conf("tab_crowns"),
+  path_mnt = oiseauData::data_conf("path_mnt"),
   buffer = oiseauData::data_conf("buffer"),
   lim_h_rege = oiseauData::data_conf("lim_h_rege"),
   pente = 0.07,
-  intercept = 2
+  intercept = 2,
+  smooth = 5,
+  uniqueness = "incremental",
+  return_apex = FALSE
 )
 }
 \arguments{
@@ -28,9 +34,15 @@ spot_crowns(
 \item{pente}{voir lidR::locate_trees}
 
 \item{intercept}{voir lidR::locate_trees}
+
+\item{smooth}{fenêtre de lissage du mnh}
+
+\item{uniqueness}{incremental ou bitmerge}
+
+\item{return_apex}{si TRUE, renvoie une liste: crowns et apex}
 }
 \value{
-spatvector des couronnes
+spatvector des couronnes ou liste si return_apex
 }
 \description{
 Détection des couronnes sur MNH

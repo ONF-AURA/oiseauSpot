@@ -22,6 +22,7 @@
 spot_maj_mnh <- function(ext = oiseauData::data_conf("shp"),
                          path_spot_ts = oiseauData::data_conf("path_spot_ts"),
                          path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
+                         tab_mnh = oiseauData::data_conf("tab_mnh"),
                          dest_masques = oiseauData::data_conf("path_mnh_dead_ts"),
                          dest_mnh = oiseauData::data_conf("path_mnh_ts"),
                          buffer  = oiseauData::data_conf("buffer"),
@@ -30,7 +31,7 @@ spot_maj_mnh <- function(ext = oiseauData::data_conf("shp"),
 ){
 
 
-  mnhs <- terra::rast(path_mnh_ts)
+  mnhs <- oiseauData::data.load_mnh(path_mnh_ts, tab_mnh)
 
   date_mnh <- max(terra::time(mnhs) %>% as.Date())
 
@@ -49,6 +50,8 @@ spot_maj_mnh <- function(ext = oiseauData::data_conf("shp"),
 
   maj <- function(date0, date1, date_mnh){
 
+    message("mise à jour ", as.character(date1), " ....")
+
     mnhs <- terra::rast(path_mnh_ts)
 
 
@@ -58,17 +61,13 @@ spot_maj_mnh <- function(ext = oiseauData::data_conf("shp"),
     mnh0 <- mnhs[[as.Date(terra::time(mnhs)) == as.Date(date_mnh)]]
 
     mnh0c <- mnh0 * maj0
-    terra::time(mnh0c) <- date1
 
-      mnh_cor_new <- c(mnhs, mnh0c)
-      terra::time(mnh_cor_new) <- c(terra::time(mnhs) %>% as.Date(),
-                                    terra::time(mnh0c) %>% as.Date())
+    oiseauData::data.mnh_merge(mnh0c, dest_mnh,
+                               date_new = as.character(date1),
+                               origine_new = "spot",
+                               path_meta = tab_mnh)
 
-      tmp <- tempfile(fileext = ".nc")
-      terra::writeCDF(mnh_cor_new, tmp, overwrite = TRUE)
-      new <- terra::rast(tmp)
-      terra::writeCDF(new, dest_mnh, overwrite = TRUE)
-      unlink(tmp)
+
 
       if(file.exists(dest_masques)){
         prev <- terra::rast(dest_masques)
@@ -78,6 +77,10 @@ spot_maj_mnh <- function(ext = oiseauData::data_conf("shp"),
       }else{
         dis <- maj0
       }
+
+    # ne pas écrire directement sur la source !
+
+    tmp <- tempfile(fileext = ".nc")
 
       terra::writeCDF(dis, tmp, overwrite = TRUE)
       new <- terra::rast(tmp)
@@ -91,10 +94,10 @@ spot_maj_mnh <- function(ext = oiseauData::data_conf("shp"),
   # Correction MNH0: suppression des arbres présent sur le MNH mais sec ou disparus sur Spot
   # ensuite, utilise le MNH corrigé
 
-  ls_dis <- purrr::map(1:length(dates[-1]),
+  ls_dis <- purrr::map(1:(length(dates) - 1),
                        ~ ifelse(.x == 1,
                                 maj(dates[.x], dates[.x+1], date_mnh),
-                                maj(dates[.x], dates[.x+1], dates[.x])))
+                                maj(dates[.x], dates[.x+1], date_mnh)))
 
 
 terra::rast(dest_masques) %>% terra::plot(col=c("red", "gray"))

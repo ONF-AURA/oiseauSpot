@@ -7,24 +7,37 @@
 #' @param lim_h_rege hauteur minimale des apex à détecter
 #' @param pente voir lidR::locate_trees
 #' @param intercept voir lidR::locate_trees
+#' @param smooth fenêtre de lissage du mnh
+#' @param uniqueness incremental ou bitmerge
+#' @param return_apex si TRUE, renvoie une liste: crowns et apex
 #'
-#' @return spatvector des couronnes
+#' @return spatvector des couronnes ou liste si return_apex
 #' @export
 #'
 spot_crowns <- function(
     date_mnh,
     ext = oiseauData::data_conf("shp"),
     path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
+    path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
+    path_meta = oiseauData::data_conf("tab_crowns"),
+    path_mnt = oiseauData::data_conf("path_mnt"),
     buffer = oiseauData::data_conf("buffer"),
     lim_h_rege = oiseauData::data_conf("lim_h_rege"),
     pente = .07,
-    intercept = 2){
+    intercept = 2,
+    smooth = 5,
+    uniqueness  = "incremental",
+    return_apex = FALSE
+    ){
 
-  mnhs <- terra::rast(path_mnh_ts)
+  mnhs <- oiseauData::data.load_mnh()
+
+  date_mnh <- oiseauUtil::util_an2date(date_mnh, mnhs)
+
   mnh0 <- mnhs[[as.Date(terra::time(mnhs)) == as.Date(date_mnh)]]
 
-  h0 <- mnh0 %>% terra::crop(as(ext %>% st_buffer(buffer), "SpatVector")) %>%
-    terra::mask(as(ext %>% st_buffer(buffer), "SpatVector"))
+  h0 <- mnh0 %>% terra::crop(as(ext %>% sf::st_buffer(buffer), "SpatVector")) %>%
+    terra::mask(as(ext %>% sf::st_buffer(buffer), "SpatVector"))
 
   # if(!is.null(path_mnh_dead_ts)){
   #   if(file.exists(path_mnh_dead_ts)){
@@ -44,20 +57,47 @@ spot_crowns <- function(
   #   }
   # }
 
-  a <- spot_apex(h0, lim_h_rege)
+  a <- oiseauSpot::spot_apex(h0, lim_h_rege, pente, intercept, smooth = smooth, uniqueness = uniqueness)
 
-  h0r <- h0
-  suppressWarnings(terra::crs(h0r) <- NA)
-  h0r <- as(h0r , "Raster")
-  suppressWarnings(raster::crs(h0r) <- raster::crs(a))
+  # utilise stars car pb raster not in memory et pb terra poj4...
 
-  algo <- lidR::dalponte2016(h0r, a)
-  cr <- rast(algo())
+  h0r <- oiseauUtil::util_spat2rast(h0) %>%
+    stars::st_as_stars()
+
+  a_sf <- sf::st_as_sf(a)
+
+  sf::st_crs(a_sf) <- sf::st_crs(h0r)
+
+  algo <- lidR::dalponte2016(stars::st_as_stars(h0r), a_sf)
+  cr_ini <- algo()
+  cr <- as(cr_ini, "Raster") %>% terra::rast()
   names(cr) <- "id"
 
-  terra::as.polygons(cr) %>% st_as_sf %>%
-    mutate(area = sf::st_area(.) %>% as.numeric()) %>%
-    filter(area > 1) %>%
+
+  crowns <- terra::as.polygons(cr) %>% sf::st_as_sf() %>%
+    dplyr::mutate(area = sf::st_area(.) %>% as.numeric()) %>%
+    dplyr::filter(area > 1) %>%
     dplyr::select(-area) %>%
     as("SpatVector")
+
+  # écriture raster
+
+  mnt <- terra::rast(path_mnt)
+  rcr <- terra::rasterize(crowns, mnt, field = "id")
+
+  terra::time(rcr) <- as.Date(date_mnh)
+
+  oiseauData::data.ras_merge(rcr,
+                 var = "crowns",
+                 dest = path_crowns_ts,
+                 path_meta = path_meta,
+                 path_mnt = path_mnt)
+
+
+  if(return_apex){
+    list(crowns = crowns,
+         apex = a_sf)
+  }else{
+    crowns
+  }
 }

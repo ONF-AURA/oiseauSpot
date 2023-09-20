@@ -19,7 +19,7 @@ spot_differences <- function(ext = oiseauData::data_conf("shp"),
                              an = oiseauData::data_conf("an1"),
                              buffer = oiseauData::data_conf("buffer"),
                              spot_best_day = oiseauData::data_conf("spot_best_day"), #"07-01",
-                             formula = "log(spot$ir/spot$green)"
+                             formula = oiseauSpot::spot_indice("NDVI")
                              ){
 
 
@@ -52,7 +52,7 @@ spot_differences <- function(ext = oiseauData::data_conf("shp"),
     return(c(ind_prec, ind))
   }else{
     cr <- suppressWarnings(spot_crowns(path_mnh_ts = path_mnh_ts, ext = ext, buffer = buffer,
-                                       path_mnh_dead_ts = path_mnh_dead_ts, an = an))
+                                       date_mnh = an))
 
     e <- terra::extract(c(ind_prec, ind), cr, fun = median, na.rm = TRUE)
     shp <- cr %>% sf::st_as_sf() %>%

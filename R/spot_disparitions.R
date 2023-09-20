@@ -22,15 +22,16 @@ spot_disparitions <- function(
     ext = oiseauData::data_conf("shp"),
     path_spot_ts = oiseauData::data_conf("path_spot_ts"),
     path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
+    tab_mnh = oiseauData::data_conf("tab_mnh"),
     buffer  = oiseauData::data_conf("buffer"),
     seuil_diff_spot = oiseauData::data_conf("seuil_diff_spot")
 ){
 
 
 
-  mnhs <- terra::rast(path_mnh_ts)
+  mnhs <- oiseauData::data.load_mnh(path_mnh_ts, tab_mnh)
 
-
+  date_mnh <- oiseauUtil::util_an2date(date_mnh, mnhs)
 
   mnh <- mnhs[[as.Date(terra::time(mnhs)) == as.Date(date_mnh)]]
 

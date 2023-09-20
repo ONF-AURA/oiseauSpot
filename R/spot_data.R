@@ -4,6 +4,8 @@
 #' @param roi sf de la zone d'intérêt. Si NULL, renvoie seulement la liste des polygones des emprises
 #' @param destpath chemin du dossier où écrire les images
 #' @param buffer buffer à appliquer à roi
+#' @param info TRUE pour ne renvoyer que le taux de couverture par image
+#' @param day_opti jour de l'année optimal pour la prise de vue, format MM-JJ
 #'
 #' @return liste des polygones es emprises des dalles spots
 #' @export
@@ -12,11 +14,18 @@
 spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
                       roi =  oiseauData::data_conf("shp"),
                       destpath =  oiseauData::data_conf("path_spot_ts"),
-                      buffer =  oiseauData::data_conf("buffer")){
+                      buffer =  oiseauData::data_conf("buffer"),
+                      info = FALSE,
+                      day_opti = "06-15"){
 
   # dos_spot = "/var/partage2/spot6"
   # img = "2021093036472556CP"
   # roi = oiseau2::se_zone_frt("STSULPIC", FALSE) %>% dplyr::filter(CCOD_CACT==8805)
+
+  # vérif day_opti
+
+  if(inherits(try(as.Date(paste0("2020-", day_opti))), "try-error"))
+    return(oiseauUtil::util_log(message = "day_opti doit être au format MM-JJ", fonction = "spot_data"))
 
   # pansharp
 
@@ -76,91 +85,169 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
     pansharp
   }
 
-  # ----------------------------------------------------------------
+  # Couverture de la zone par les images disponibles ----------------------------------------------------------------
 
   Sys.umask(0)
 
   if(!dir.exists(dirname(destpath))) dir.create(dirname(destpath))
 
-  tifs_img <- list.files(dos_spot, pattern = ".TIF", recursive = TRUE, full.names = TRUE)
+  dos_spot_an <- list.dirs(dos_spot, recursive = FALSE)
+  dos_spot_an <- dos_spot_an[which(!is.na(as.numeric(basename(dos_spot_an))))]
 
-  # années ---------------------------------------------------------------
+  tb_img <- read.csv(file.path(dos_spot, "data.csv"), stringsAsFactors = FALSE)
 
-  n <- basename(tifs_img)
+  taux <- list() # taux de couverture de la zoneb d'intérêt par image
 
-  n7 <- n[stringr::str_detect(n, "SPOT7")]
-  date7 <- stringr::str_split(n7, "_", simplify = TRUE)[,7] %>%
-    unique
-  n6 <- n[!stringr::str_detect(n, "SPOT7")]
-  date6 <- stringr::str_split(n6, "_", simplify = TRUE)[,3] %>%
-    stringr::str_sub(1,8) %>%
-    unique
+  paths_ms <- tb_img %>% dplyr::filter(band == "MS") %>% dplyr::pull(tif)
 
-  ls_ext <- list() # liste' des polygones des étendues des images
+  # dossier des miniatures
+  dir_mini <- file.path(dos_spot, "ext")
+  if(!dir.exists(dir_mini)) dir.create(dir_mini)
+
+  # recherche des images concernant la zone d'étude
+
+  for(i_ms in paths_ms){
+
+    path_mini <- file.path(dir_mini, basename(i_ms))
+
+    if(!file.exists(path_mini)){
+
+      # création des miniatures encore non créées
+
+      message("Création de la miniature SPOT ", basename(i_ms))
+
+      ext <- terra::rast(i_ms[1])[[1]] %>% terra::aggregate(10)
+      ext[ext < 0] <- NA
+      ext[ext == 0] <- NA
+      ext[!is.na(ext)] <- 1
+
+      terra::writeRaster(ext, path_mini, overwrite = TRUE)
+    }
+
+    # intersection avec roi
+
+    ext <- terra::rast(path_mini)
+
+    roi_rast <- terra::rasterize(roi %>% as("SpatVector"), ext)
+    inter <- c(roi_rast, ext) %>% terra::as.data.frame()
+    px <- inter[[2]][inter[[1]] == 1]
+    taux[[basename(i_ms)]] <- sum(px, na.rm = TRUE) / length(px)
+  }
+
+  # table des images disponibles
+
+  tb_info <- tb_img %>% dplyr::filter(band == "MS") %>%
+    dplyr::mutate(file = basename(tif)) %>%
+    dplyr::left_join(
+      data.frame(file = names(taux),
+                 couverture = unlist(taux) * 100,
+                 stringsAsFactors = FALSE),
+      by = "file"
+    ) %>%
+    dplyr::mutate(
+      an = as.Date(date) %>% format("%Y") %>% as.numeric(),
+      diff_opti = (as.numeric(as.Date(date)) -
+                     as.numeric(as.Date(paste0(an, "-", day_opti)))) %>% abs())
+
+
+  if(info){
+    return(tb_info)
+  }
+
+  # choix des images par années ---------------------------------------------------------------
+  # couverture max, puis jour optimal: préférer
+  # le début de saison de végétation (évite les colorations automnales) après débourrement complet
+
+  if(tb_info$couverture %>% na.omit() %>% length() == 0){
+    oiseauUtil::util_msg("Aucune image spot n'est disponible pour cette zone")
+  }
+
   tmpdir <- tempfile()
   dir.create(tmpdir)
 
-  # extraction -----------------------------------------------------------------------
+  for(an_ in unique(tb_info$an)){
 
-  for(d in c(date6, date7)){
+    tb_info_select <- tb_info %>% dplyr::filter(an == an_ & !is.na(couverture) & couverture != 0) %>%
+      dplyr::arrange(diff_opti)
 
-    dp <- tifs_img[stringr::str_detect(basename(tifs_img), d)]
+    if(nrow(tb_info_select) > 0){
 
-    pan_file <- dp[stringr::str_detect(dp, "_S6P_|PAN_|S7P")]
-    multi_file <- dp[stringr::str_detect(dp, "_S6X_|MS_|S7X")]
-
-    ls_ext[[length(ls_ext) + 1]] <- terra::as.polygons(terra::rast(multi_file), extent = TRUE)
-    names(ls_ext)[length(ls_ext)] <- paste0(d,"xxx", basename(dp)[1])
-
-
-    if(!is.null(roi)){
-      terra::terraOptions(todisk = TRUE)
-
-      roi2 <- roi %>% sf::st_buffer(buffer) %>%
-        sf::st_transform(terra::crs(terra::rast(pan_file[1])))
-
-
-      if(length(pan_file) > 1){
-
-        basename(pan_file)
-        ls_pan <- purrr::map(pan_file, function(pf){
-
-          pa <- terra::rast(pf)
-          inter <- terra::intersect(
-            roi2 %>%  as("SpatVector"),
-            terra::ext(pa)
-          )
-          if(terra::expanse(inter) %>% length > 0){
-            pa %>% terra::crop(inter)
-          }else{
-            NULL
-          }
-        })
-
-        ls_pan1 <- ls_pan[! purrr::map_lgl(ls_pan, is.null)]
-
-        if(length(ls_pan1) > 1){
-          pan_tot <- terra::mosaic(terra::src(ls_pan1))
-        }else{
-          pan_tot <- ls_pan1[[1]]
-        }
-
-      }else{
-        pan_tot <- terra::rast(pan_file)
+      if(max(tb_info_select$couverture) == 100){
+        tb_info_select <- tb_info_select %>% dplyr::filter(couverture == 100) %>% dplyr::slice(1)
       }
 
-      multi_tot <- purrr::map(multi_file, ~ terra::rast(.x) %>% terra::crop(roi2))
-      multi <- do.call(c, multi_tot)
+      imgs <- tb_info_select$img
+
+      roi2 <- roi %>% sf::st_buffer(buffer) %>%
+        sf::st_transform(terra::crs(terra::rast(
+          tb_img %>% dplyr::filter(img == imgs[1] & band == "MS") %>% dplyr::pull(tif)
+        )))
+
+      ls_img <- purrr::map(imgs, function(i){
+
+
+        # raster Panchro
+
+        pf <- tb_img %>% dplyr::filter(img == i & band == "PAN") %>% dplyr::pull(tif)
+        # pf possiblement tuilé (constitué de plusieurs images, chemins séoparés par " ")
+        if(stringr::str_detect(pf, " xxx ")){
+          pf <- stringr::str_split(pf, " xxx ", simplify = TRUE)[1,]
+          ls_rast <- purrr::map(pf, ~ tryCatch(
+            terra::rast(.x) %>% terra::crop(roi2),
+                                            error = function(e){NULL}
+            ))
+          source <- terra::sprc(ls_rast[which(!purrr::map_lgl(ls_rast, is.null))])
+          pa <- terra::merge(source)
+        }else{
+          pa <- terra::rast(pf)
+        }
+
+        # raster multispectral
+
+        msf <- tb_img %>% dplyr::filter(img == i & band == "MS") %>% dplyr::pull(tif)
+        msa <- terra::rast(msf) %>% terra::crop(roi2)
+
+
+
+        inter <- terra::intersect(
+          roi2 %>%  as("SpatVector"),
+          terra::ext(pa)
+        )
+        if(terra::expanse(inter) %>% length > 0){
+          list(PAN = pa %>% terra::crop(inter),
+               MS = msa %>% terra::crop(inter))
+        }else{
+          NULL
+        }
+      })
+
+      ls_img1 <- ls_img[! purrr::map_lgl(ls_img, is.null)]
+
+      ls_pan <- purrr::map(ls_img1, ~.x[["PAN"]])
+      ls_ms <- purrr::map(ls_img1, ~.x[["MS"]])
+
+      if(length(ls_img1) > 1){
+        pan_tot <- terra::mosaic(terra::sprc(ls_pan))
+        ms_tot <- terra::mosaic(terra::sprc(ls_ms))
+
+      }else{
+        pan_tot <- ls_pan[[1]]
+        ms_tot <- ls_ms[[1]]
+
+      }
 
       pan <- terra::crop(pan_tot, roi2)
+      multi <- terra::crop(ms_tot, roi2)
 
-      dn <- as.Date(d, format = "%Y%m%d") %>% as.character()
+      result <- pansharp(pan, multi, destination = file.path(tmpdir,
+                                                             paste0(tb_info_select$date,
+                                                                    ".tif")))
 
-      result <- pansharp(pan, multi, destination = file.path(tmpdir, paste0(dn, ".tif")))
+      # terra::terraOptions(todisk = FALSE)
 
-      terra::terraOptions(todisk = FALSE)
+      message("image SPOT du ", tb_info_select$date, " créée.")
 
-      message("image SPOT du ", dn, " créée.")
+      gc()
     }
   }
 
@@ -188,9 +275,14 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
 
   terra::writeCDF(tifs, destpath, overwrite = TRUE)
 
-  unlink(tmpdir)
+  unlink(tmpdir, recursive = TRUE)
+
+  oiseauUtil::util_msg("Série temporelle SPOT extraite.", notification = TRUE)
 
 }
+
+
+
 
 
 

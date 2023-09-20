@@ -8,7 +8,9 @@ spot_data(
   dos_spot = oiseauData::data_conf("dos_spot"),
   roi = oiseauData::data_conf("shp"),
   destpath = oiseauData::data_conf("path_spot_ts"),
-  buffer = oiseauData::data_conf("buffer")
+  buffer = oiseauData::data_conf("buffer"),
+  info = FALSE,
+  day_opti = "06-15"
 )
 }
 \arguments{
@@ -19,6 +21,10 @@ spot_data(
 \item{destpath}{chemin du dossier où écrire les images}
 
 \item{buffer}{buffer à appliquer à roi}
+
+\item{info}{TRUE pour ne renvoyer que le taux de couverture par image}
+
+\item{day_opti}{jour de l'année optimal pour la prise de vue, format MM-JJ}
 }
 \value{
 liste des polygones es emprises des dalles spots

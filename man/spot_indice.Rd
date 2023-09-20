@@ -5,29 +5,36 @@
 \title{Indice de végétation des couronnes}
 \usage{
 spot_indice(
-  date_mnh,
+  choix_crowns = "last",
   date_spot,
+  crowns = TRUE,
   shp_roi = oiseauData::data_conf("shp"),
   path_spot_ts = oiseauData::data_conf("path_spot_ts"),
-  path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
+  path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
+  path_tab_crowns = oiseauData::data_conf("tab_crowns"),
+  path_mnt = oiseauData::data_conf("path_mnt"),
   buffer = oiseauData::data_conf("buffer"),
   indice = "ndvi"
 )
 }
 \arguments{
-\item{date_mnh}{date du MNH utilisé}
-
 \item{date_spot}{date de l'image SPOT utilisée}
+
+\item{crowns}{TRUE pour l'indice par couronne, sinon par pixel}
 
 \item{shp_roi}{sf de découpage}
 
 \item{path_spot_ts}{chemin vers le raster de série temporelle spot}
 
-\item{path_mnh_ts}{chemin vers le raster de série temporelle du MNH (résolution 1m)}
+\item{path_crowns_ts}{chemin vers le raster de série temporelle des couronnes (résolution 1m)}
+
+\item{path_tab_crowns}{chemin du fichier meta de la série temporelle des couronnes}
 
 \item{buffer}{buffer à appliquer à shp_roi}
 
 \item{indice}{nom de l'indice utilisé, par défaut ndvi. voir spot_formula}
+
+\item{date_crowns}{date du MNH utilisé, ou 'last' pour utiliser le plus récent}
 }
 \value{
 spatRaster

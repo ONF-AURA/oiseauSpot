@@ -1,6 +1,6 @@
 #' Image couleur SPOT
 #'
-#' @param s spatraster 4 bandes nommées: r (rouge) ir (infrarouge) b (bleu) et g (vert), OU liste de spatraster 4 bandes nommées "spotXXXX" où XXXX est l'année de prise de vue
+#' @param path_spot_ts chemin du fichier .nc des images spot
 #' @param ir TRUE pour une image en fausses couleurs infrarouge
 #' @param ans 0 pour toutes les images, ou vecteur des années à afficher
 #' @param horizontal agencement des images multiples: TRUE ou FALSE
@@ -14,17 +14,27 @@
 #' @export
 #'
 
-spot_plotRGB <- function(s, ir = FALSE, ans = 0, horizontal = TRUE, overlay = NULL, mask = FALSE,
+spot_plotRGB <- function(path_spot_ts = oiseauData::data_conf("path_spot_ts"),
+                         ir = FALSE, ans = 0, horizontal = TRUE, overlay = NULL, mask = FALSE,
                          sub = NULL, evo = NULL, col = "blue"){
 
-  if(!inherits(s, "list")) s <- list(s)
-  if(ans[1] != 0){
-    s <- s[paste("spot", ans, sep="")]
+  spots <- terra::rast(path_spot_ts)
+
+  ans_spot_band <- format(terra::time(spots), "%Y") %>% as.numeric()
+  ans_spot <- ans_spot_band %>% unique() %>% sort()
+
+  if(ans == 0){
+    ans <- ans_spot
   }
+
+  s <- purrr::map(ans, ~ spots[[which(ans_spot_band == .x)]])
+
+
 
   fun <- function(i){
 
     si <- s[[i]]
+    si[is.infinite(si)] <- NA
 
     if(mask & !is.null(overlay)){
       si <- terra::mask(si, as(overlay, "SpatVector"))

@@ -11,6 +11,7 @@ spot_disparitions(
   ext = oiseauData::data_conf("shp"),
   path_spot_ts = oiseauData::data_conf("path_spot_ts"),
   path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
+  tab_mnh = oiseauData::data_conf("tab_mnh"),
   buffer = oiseauData::data_conf("buffer"),
   seuil_diff_spot = oiseauData::data_conf("seuil_diff_spot")
 )

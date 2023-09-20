@@ -12,7 +12,7 @@ spot_differences(
   an = oiseauData::data_conf("an1"),
   buffer = oiseauData::data_conf("buffer"),
   spot_best_day = oiseauData::data_conf("spot_best_day"),
-  formula = "log(spot$ir/spot$green)"
+  formula = oiseauSpot::spot_indice("NDVI")
 )
 }
 \arguments{

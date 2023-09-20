@@ -8,6 +8,7 @@ spot_maj_mnh(
   ext = oiseauData::data_conf("shp"),
   path_spot_ts = oiseauData::data_conf("path_spot_ts"),
   path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
+  tab_mnh = oiseauData::data_conf("tab_mnh"),
   dest_masques = oiseauData::data_conf("path_mnh_dead_ts"),
   dest_mnh = oiseauData::data_conf("path_mnh_ts"),
   buffer = oiseauData::data_conf("buffer"),

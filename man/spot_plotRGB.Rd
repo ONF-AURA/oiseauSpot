@@ -5,7 +5,7 @@
 \title{Image couleur SPOT}
 \usage{
 spot_plotRGB(
-  s,
+  path_spot_ts = oiseauData::data_conf("path_spot_ts"),
   ir = FALSE,
   ans = 0,
   horizontal = TRUE,
@@ -17,7 +17,7 @@ spot_plotRGB(
 )
 }
 \arguments{
-\item{s}{spatraster 4 bandes nommées: r (rouge) ir (infrarouge) b (bleu) et g (vert), OU liste de spatraster 4 bandes nommées "spotXXXX" où XXXX est l'année de prise de vue}
+\item{path_spot_ts}{chemin du fichier .nc des images spot}
 
 \item{ir}{TRUE pour une image en fausses couleurs infrarouge}
 

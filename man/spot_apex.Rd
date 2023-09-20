@@ -4,7 +4,14 @@
 \alias{spot_apex}
 \title{Détection des apex sur MNH}
 \usage{
-spot_apex(h, lim_h_rege = 3, pente = 0.07, intercept = 2)
+spot_apex(
+  h,
+  lim_h_rege = 3,
+  pente = 0.07,
+  intercept = 2,
+  smooth = 5,
+  uniqueness = "incremental"
+)
 }
 \arguments{
 \item{h}{mnh projeté en Lambert93 (epsg 2154)}
@@ -14,6 +21,10 @@ spot_apex(h, lim_h_rege = 3, pente = 0.07, intercept = 2)
 \item{pente}{voir lidR::locate_trees}
 
 \item{intercept}{voir lidR::locate_trees}
+
+\item{smooth}{fenêtre de lissage du mnh}
+
+\item{uniqueness}{incremental ou bitmerge}
 }
 \value{
 spatialpoints
