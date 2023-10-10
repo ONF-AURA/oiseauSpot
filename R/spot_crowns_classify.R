@@ -20,8 +20,8 @@ spot_crowns_classify <- function(ncat = 8,
                           ){
 
 
-  cr <- uCrowns(path_crowns)
-  sp <- uSpot(path_spot)
+  cr <- uRast("crowns")
+  sp <- uRast("spot")
 
   if(! "hmax" %in% names(cr)){
     oiseauUtil::util_log("spot_crowns_classify", "Les métriques des couronnes ne sont pas disponibles. Exécutez préalablement spot_crowns_metrics.")

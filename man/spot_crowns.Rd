@@ -5,7 +5,7 @@
 \title{Détection des couronnes sur MNH}
 \usage{
 spot_crowns(
-  date_mnh,
+  date_mnh = "last",
   ext = oiseauData::data_conf("shp"),
   path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
   path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),

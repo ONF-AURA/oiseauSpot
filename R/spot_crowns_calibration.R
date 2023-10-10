@@ -35,8 +35,8 @@ spot_crowns_calibration <- function(path_points,
     return("ko")
   }
 
-  cr <- uCrowns(path_crowns)
-  sp <- uSpot(path_spot)
+  cr <- uRast("crowns", path = path_crowns_ts)
+  sp <- uRast("spot", path = path_spot)
 
   if(! "hmax" %in% names(cr)){
     oiseauUtil::util_log("spot_crowns_calibration", "Les métriques des couronnes ne sont pas disponibles. Exécutez préalablement spot_crowns_metrics.")

@@ -14,11 +14,20 @@
 #' @export
 #'
 
-spot_plotRGB <- function(path_spot_ts = oiseauData::data_conf("path_spot_ts"),
-                         ir = FALSE, ans = 0, horizontal = TRUE, overlay = NULL, mask = FALSE,
-                         sub = NULL, evo = NULL, col = "blue"){
+spot_plotRGB <- function(ans = 0, id_over = NULL, path_spot_ts = oiseauData::data_conf("path_spot_ts"),
+                         ir = FALSE, horizontal = TRUE, overlay = oiseauData::data_conf("shp"), mask = FALSE,
+                         sub = id_over, evo = NULL, col = "blue"){
 
   spots <- terra::rast(path_spot_ts)
+
+  if(!is.null(id_over)){
+    if(!id_over %in% overlay$id){
+      message(id_over, "n'est pas un identifiant foncier connu. Les id disponibles sont:", paste(overlay$id %>% unique() %>% sort(), collapse = " | "))
+      return("ko")
+    }
+
+    overlay <- overlay %>% dplyr::filter(id %in% id_over)
+  }
 
   ans_spot_band <- format(terra::time(spots), "%Y") %>% as.numeric()
   ans_spot <- ans_spot_band %>% unique() %>% sort()
@@ -27,7 +36,7 @@ spot_plotRGB <- function(path_spot_ts = oiseauData::data_conf("path_spot_ts"),
     ans <- ans_spot
   }
 
-  s <- purrr::map(ans, ~ spots[[which(ans_spot_band == .x)]])
+  s <- purrr::map(ans, ~ spots[[which(ans_spot_band == .x)]] %>% terra::crop(overlay))
 
 
 
@@ -42,10 +51,13 @@ spot_plotRGB <- function(path_spot_ts = oiseauData::data_conf("path_spot_ts"),
 
     nx <- terra::minmax(si)
     rn <- (si - nx[1,]) / (nx[2,] - nx[1,])
+
+    rn <- util_spat2rast(rn) # bug terra::plotRGB !
+
     if(ir){
-      terra::plotRGB(rn,4,1,2, scale=1, stretch="hist", smooth=TRUE)
+      raster::plotRGB(rn,4,1,2, scale=1, stretch="hist", smooth=TRUE)
     }else{
-      terra::plotRGB(rn,1,2,3, scale=1, stretch="hist", smooth=TRUE)
+      raster::plotRGB(rn,1,2,3, scale=1, stretch="hist", smooth=TRUE)
     }
     title(main = names(s)[i], sub = sub, line = -1, outer = FALSE)
 

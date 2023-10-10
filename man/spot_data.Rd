@@ -10,7 +10,9 @@ spot_data(
   destpath = oiseauData::data_conf("path_spot_ts"),
   buffer = oiseauData::data_conf("buffer"),
   info = FALSE,
-  day_opti = "06-15"
+  day_opti = "06-15",
+  force = FALSE,
+  spec_date = NULL
 )
 }
 \arguments{
@@ -25,6 +27,10 @@ spot_data(
 \item{info}{TRUE pour ne renvoyer que le taux de couverture par image}
 
 \item{day_opti}{jour de l'année optimal pour la prise de vue, format MM-JJ}
+
+\item{force}{TRUE pour écraser une donnée existante}
+
+\item{spec_date}{année ou date spécifiquement demandée}
 }
 \value{
 liste des polygones es emprises des dalles spots

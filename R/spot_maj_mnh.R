@@ -10,9 +10,11 @@
 #' @param ext sf de la zone
 #' @param path_spot_ts chemin du fichier .nc d'écriture de la série temporelle
 #' @param path_mnh_ts chemin du MNH
+#' @param path_crowns_ts chemin vers le raster de série temporelle des couronnes (résolution 1m)
+#' @param tab_crowns chemin du fichier meta de la série temporelle des couronnes
 #' @param buffer buffer shp
 #' @param .dir Dossier du projet si oiseauData est utilisé. Omet tous les autres arguments sauf an_fin
-#' @param dest_masques chemin d'écriture du fichier raster .tif des masques
+#' @param dest_deads chemin d'écriture du fichier raster .tif des masques
 #' @param dest_mnh chemin d'écriture du fichier raster .tif des mnh
 #' @param seuil_diff_spot seuil de différence à partir duquel la couronne est éliminée
 #'
@@ -23,7 +25,10 @@ spot_maj_mnh <- function(ext = oiseauData::data_conf("shp"),
                          path_spot_ts = oiseauData::data_conf("path_spot_ts"),
                          path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
                          tab_mnh = oiseauData::data_conf("tab_mnh"),
-                         dest_masques = oiseauData::data_conf("path_mnh_dead_ts"),
+                         path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
+                         tab_crowns = oiseauData::data_conf("tab_crowns"),
+                         tab_deads = oiseauData::data_conf("tab_deads"),
+                         dest_deads = oiseauData::data_conf("path_deads_ts"),
                          dest_mnh = oiseauData::data_conf("path_mnh_ts"),
                          buffer  = oiseauData::data_conf("buffer"),
                          seuil_diff_spot = oiseauData::data_conf("seuil_diff_spot"),
@@ -31,12 +36,13 @@ spot_maj_mnh <- function(ext = oiseauData::data_conf("shp"),
 ){
 
 
-  mnhs <- oiseauData::data.load_mnh(path_mnh_ts, tab_mnh)
 
-  date_mnh <- max(terra::time(mnhs) %>% as.Date())
+  date_mnh <- uDates("mnh") %>%
+    dplyr::filter(origine != "spot") %>%
+    dplyr::pull(date) %>%
+    as.Date() %>% max() %>% unique()
 
-  spots <- terra::rast(path_spot_ts)
-  dates_spot <- terra::time(spots) %>% as.Date()
+  dates_spot <- uDates("spot") %>% dplyr::pull(date) %>% as.Date()
 
   # date précédant le MNH, pour suppression des arbres détectés mais morts
 
@@ -48,19 +54,26 @@ spot_maj_mnh <- function(ext = oiseauData::data_conf("shp"),
 
 
 
-  maj <- function(date0, date1, date_mnh){
+  maj <- function(date, n, ini = FALSE){
+
+    date0 <- dates[n]
+    date1 <- dates[n+1]
 
     message("mise à jour ", as.character(date1), " ....")
 
-    mnhs <- terra::rast(path_mnh_ts)
 
+    ras_dif <- spot_differences(date1)
 
-    maj0 <- spot_disparitions(date0 = date0, date1 = date1, date_mnh = date_mnh)
+    ras_dif[ras_dif < seuil_diff_spot] <- 0
+    ras_dif[ras_dif >= seuil_diff_spot] <- 1
 
+    if(n == 1){
+      mnh0 <- uMnh(date_mnh, "-spot")
+    }else{
+      mnh0 <- uMnh(date0, "spot")
+    }
 
-    mnh0 <- mnhs[[as.Date(terra::time(mnhs)) == as.Date(date_mnh)]]
-
-    mnh0c <- mnh0 * maj0
+    mnh0c <- mnh0 * (1 - ras_dif)
 
     oiseauData::data.mnh_merge(mnh0c, dest_mnh,
                                date_new = as.character(date1),
@@ -69,25 +82,13 @@ spot_maj_mnh <- function(ext = oiseauData::data_conf("shp"),
 
 
 
-      if(file.exists(dest_masques)){
-        prev <- terra::rast(dest_masques)
-        dis <- c(prev, maj0)
-        terra::time(dis) <- c(terra::time(prev) %>% as.Date,
-                              terra::time(maj0) %>% as.Date)
-      }else{
-        dis <- maj0
-      }
+    oiseauData::data.ras_merge(ras_dif, "deads",
+                               dest = dest_deads,
+                               date_new = as.character(date1),
+                               path_meta = tab_deads
+                               )
 
-    # ne pas écrire directement sur la source !
-
-    tmp <- tempfile(fileext = ".nc")
-
-      terra::writeCDF(dis, tmp, overwrite = TRUE)
-      new <- terra::rast(tmp)
-      terra::writeCDF(new, dest_masques, overwrite = TRUE)
-      unlink(tmp)
-
-    return(maj0)
+    return(mnh0c)
   }
 
 
@@ -95,12 +96,10 @@ spot_maj_mnh <- function(ext = oiseauData::data_conf("shp"),
   # ensuite, utilise le MNH corrigé
 
   ls_dis <- purrr::map(1:(length(dates) - 1),
-                       ~ ifelse(.x == 1,
-                                maj(dates[.x], dates[.x+1], date_mnh),
-                                maj(dates[.x], dates[.x+1], date_mnh)))
+                       ~ maj(dates, .x, date_mnh))
 
 
-terra::rast(dest_masques) %>% terra::plot(col=c("red", "gray"))
+  terra::rast(dest_deads) %>% terra::plot(col=c("red", "gray"))
 
 
   message(crayon::green("MNH mis à jour"))

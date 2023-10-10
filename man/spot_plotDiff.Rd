@@ -6,12 +6,18 @@
 \usage{
 spot_plotDiff(
   diff,
+  ID = NULL,
+  overlay = oiseauData::data_conf("shp"),
   pal1 = c("green", "yellow", "red"),
   pal2 = c("green", "green", "yellow", "red")
 )
 }
 \arguments{
 \item{diff}{liste issue de spot_differences}
+
+\item{ID}{zoom sur un ID foncier ou NULL pour tout}
+
+\item{overlay}{couche vecteur à superposer (à défaut le shp foncier)}
 
 \item{pal1}{vecteur de couleurs pour carte d'indice}
 

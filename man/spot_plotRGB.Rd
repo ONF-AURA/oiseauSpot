@@ -5,23 +5,24 @@
 \title{Image couleur SPOT}
 \usage{
 spot_plotRGB(
+  ans = 0,
+  id_over = NULL,
   path_spot_ts = oiseauData::data_conf("path_spot_ts"),
   ir = FALSE,
-  ans = 0,
   horizontal = TRUE,
-  overlay = NULL,
+  overlay = oiseauData::data_conf("shp"),
   mask = FALSE,
-  sub = NULL,
+  sub = id_over,
   evo = NULL,
   col = "blue"
 )
 }
 \arguments{
+\item{ans}{0 pour toutes les images, ou vecteur des années à afficher}
+
 \item{path_spot_ts}{chemin du fichier .nc des images spot}
 
 \item{ir}{TRUE pour une image en fausses couleurs infrarouge}
-
-\item{ans}{0 pour toutes les images, ou vecteur des années à afficher}
 
 \item{horizontal}{agencement des images multiples: TRUE ou FALSE}
 

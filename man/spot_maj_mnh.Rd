@@ -9,7 +9,10 @@ spot_maj_mnh(
   path_spot_ts = oiseauData::data_conf("path_spot_ts"),
   path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
   tab_mnh = oiseauData::data_conf("tab_mnh"),
-  dest_masques = oiseauData::data_conf("path_mnh_dead_ts"),
+  path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
+  tab_crowns = oiseauData::data_conf("tab_crowns"),
+  tab_deads = oiseauData::data_conf("tab_deads"),
+  dest_deads = oiseauData::data_conf("path_deads_ts"),
   dest_mnh = oiseauData::data_conf("path_mnh_ts"),
   buffer = oiseauData::data_conf("buffer"),
   seuil_diff_spot = oiseauData::data_conf("seuil_diff_spot"),
@@ -23,7 +26,11 @@ spot_maj_mnh(
 
 \item{path_mnh_ts}{chemin du MNH}
 
-\item{dest_masques}{chemin d'écriture du fichier raster .tif des masques}
+\item{path_crowns_ts}{chemin vers le raster de série temporelle des couronnes (résolution 1m)}
+
+\item{tab_crowns}{chemin du fichier meta de la série temporelle des couronnes}
+
+\item{dest_deads}{chemin d'écriture du fichier raster .tif des masques}
 
 \item{dest_mnh}{chemin d'écriture du fichier raster .tif des mnh}
 

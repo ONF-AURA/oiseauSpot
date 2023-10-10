@@ -15,7 +15,7 @@
 #' @export
 #'
 spot_crowns <- function(
-    date_mnh,
+    date_mnh = "last",
     ext = oiseauData::data_conf("shp"),
     path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
     path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
@@ -30,18 +30,22 @@ spot_crowns <- function(
     return_apex = FALSE
     ){
 
-  mnhs <- oiseauData::data.load_mnh()
 
-  date_mnh <- oiseauUtil::util_an2date(date_mnh, mnhs)
+  mnh0 <- oiseauUtil::uRast("mnh", date = date_mnh, origine = "-spot")
 
-  mnh0 <- mnhs[[as.Date(terra::time(mnhs)) == as.Date(date_mnh)]]
+  if(is.null(mnh0)){
+    util_log("spot_crown", "Aucun MNH n'est disponible.")
+    return("ko")
+  }
+
+  message("Cartographie des couronnes en cours...")
 
   h0 <- mnh0 %>% terra::crop(as(ext %>% sf::st_buffer(buffer), "SpatVector")) %>%
     terra::mask(as(ext %>% sf::st_buffer(buffer), "SpatVector"))
 
-  # if(!is.null(path_mnh_dead_ts)){
-  #   if(file.exists(path_mnh_dead_ts)){
-  #     h0_msk <- terra::rast(path_mnh_dead_ts)
+  # if(!is.null(path_deads_ts)){
+  #   if(file.exists(path_deads_ts)){
+  #     h0_msk <- terra::rast(path_deads_ts)
   #     dates_msk <- terra::time(h0_msk)
   #     dates_msk_util <- dates_msk[which(dates_msk < )]
   #   }
@@ -85,7 +89,7 @@ spot_crowns <- function(
   mnt <- terra::rast(path_mnt)
   rcr <- terra::rasterize(crowns, mnt, field = "id")
 
-  terra::time(rcr) <- as.Date(date_mnh)
+  terra::time(rcr) <- terra::time(mnh0)
 
   oiseauData::data.ras_merge(rcr,
                  var = "crowns",

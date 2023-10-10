@@ -14,24 +14,23 @@ spot_crowns_metrics <- function(date_mnh,
                                 path_mnt = oiseauData::data_conf("path_mnt"),
                                 buffer = oiseauData::data_conf("buffer"),
                                 mask = oiseauData::data_conf("shp"),
-                                lim_h_rege = oiseauData::data_conf("lim_h_rege")
+                                lim_h_rege = oiseauData::data_conf("lim_h_rege"),
+                                best_day = oiseauData::data_conf("spot_best_day")
 ){
 
-  ck <- oiseauUtil::util_is_date(date_mnh, "mnh")
+  date_mnh <- oiseauUtil::util_is_date(date_mnh, "mnh")
 
-  if(ck == "ko"){
+  if(date_mnh == "ko"){
     return("ko")
-  }else if(ck == "an"){
-    date_mnh <- oiseauUtil::util_is_date(date_mnh, "mnh", date_out = TRUE)
   }
 
   if(!file.exists(path_mnh_ts)){
-    oiseauUtil::util_log("spot_crowns_metrics", "Aucun raster des couronnes n'est encore disponible.")
+    oiseauUtil::util_log("spot_crowns_metrics", paste("Le MNH n'existe pas."))
   }
 
   # raster des couronnes -------------------
 
-  crowns <- uCrowns(path_crowns_ts, path_meta)
+  crowns <- uRast("crowns", path = path_crowns_ts, path_meta = path_meta)
 
   names(crowns) <- uMeta(path_meta)$origine
 

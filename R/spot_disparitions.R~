@@ -1,0 +1,74 @@
+
+
+
+
+#' Raster des couronnes disparues entre deux images spot
+#'
+#'
+#' @param date0 date de la première image spot
+#' @param date1 date de la seconde image spot
+#' @param date_mnh date du MNH utilisé pour la détection des couronnes
+#' @param ext sf de la zone
+#' @param path_spot_ts chemin du fichier .nc d'écriture de la série temporelle
+#' @param path_mnh_ts chemin du MNH
+#' @param path_crowns_ts chemin vers le raster de série temporelle des couronnes (résolution 1m)
+#' @param path_tab_crowns chemin du fichier meta de la série temporelle des couronnes
+#' @param buffer buffer shp
+#' @param seuil_diff_spot seuil de différence à partir duquel la couronne est éliminée
+#'
+#' @return spatraster 0 = disparu, 1 = toujours présent
+#' @export
+#'
+spot_disparitions <- function(
+    date0 = NULL, date1 = "last", date_mnh = "last",
+    ext = oiseauData::data_conf("shp"),
+    path_spot_ts = oiseauData::data_conf("path_spot_ts"),
+    path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
+    tab_mnh = oiseauData::data_conf("tab_mnh"),
+    path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
+    path_tab_crowns = oiseauData::data_conf("tab_crowns"),
+    buffer  = oiseauData::data_conf("buffer"),
+    seuil_diff_spot = oiseauData::data_conf("seuil_diff_spot")
+){
+
+
+  date1_ <- oiseauUtil::util_is_date(date1, "spot")
+
+  if(date1_ %>% as.character() == "ko"){
+    oiseauUtil::util_log("spot_disparitions", paste("L'image SPOT du", date1, "n'existe pas."))
+    return("ko")
+  }
+
+  if(is.null(date0)){
+    date0 <- as.Date(date1) %>% format("%Y") %>% as.numeric() - 1
+  }
+
+  date0_ <- oiseauUtil::util_is_date(date0, "spot")
+
+  if(date0_ %>% as.character() == "ko"){
+    oiseauUtil::util_log("spot_disparitions", paste("L'image SPOT du", date0, "n'existe pas."))
+    return("ko")
+  }
+
+
+
+  date_mnh_ <- oiseauUtil::util_is_date(date_mnh, "mnh")
+
+  if(date_mnh_ == "ko"){
+    oiseauUtil::util_log("spot_difference", paste("Le MNH du", date_mnh, "n'existe pas."))
+    return("ko")
+  }
+
+  mnh <- oiseauUtil::uMnh(date_mnh_)
+
+  ind0 <- spot_indice(date_spot = date0_, choix_crowns = date_mnh) %>% terra::resample(mnh)
+  ind1 <- spot_indice(date_spot = date1_, choix_crowns = date_mnh) %>% terra::resample(mnh)
+
+
+  ras_dif <- terra::scale(ind1)-terra::scale(ind0)
+  ras_dif[ras_dif < seuil_diff_spot] <- 1
+  ras_dif[ras_dif >= seuil_diff_spot] <- 0
+
+  ras_dif
+}
+

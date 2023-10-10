@@ -6,6 +6,8 @@
 #' @param buffer buffer à appliquer à roi
 #' @param info TRUE pour ne renvoyer que le taux de couverture par image
 #' @param day_opti jour de l'année optimal pour la prise de vue, format MM-JJ
+#' @param force TRUE pour écraser une donnée existante
+#' @param spec_date année ou date spécifiquement demandée
 #'
 #' @return liste des polygones es emprises des dalles spots
 #' @export
@@ -16,7 +18,9 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
                       destpath =  oiseauData::data_conf("path_spot_ts"),
                       buffer =  oiseauData::data_conf("buffer"),
                       info = FALSE,
-                      day_opti = "06-15"){
+                      day_opti = "06-15",
+                      force = FALSE,
+                      spec_date = NULL){
 
   # dos_spot = "/var/partage2/spot6"
   # img = "2021093036472556CP"
@@ -96,7 +100,10 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
 
   tb_img <- read.csv(file.path(dos_spot, "data.csv"), stringsAsFactors = FALSE)
 
-  taux <- list() # taux de couverture de la zoneb d'intérêt par image
+  taux <- list() # taux de couverture de la zone d'intérêt par image
+  tx_clouds <- list()
+  tx_snow <- list()
+
 
   paths_ms <- tb_img %>% dplyr::filter(band == "MS") %>% dplyr::pull(tif)
 
@@ -105,6 +112,8 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
   if(!dir.exists(dir_mini)) dir.create(dir_mini)
 
   # recherche des images concernant la zone d'étude
+
+  area_roi <- sf::st_area(roi) %>% as.numeric() %>% sum(na.rm = TRUE)
 
   for(i_ms in paths_ms){
 
@@ -124,14 +133,46 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
       terra::writeRaster(ext, path_mini, overwrite = TRUE)
     }
 
+
     # intersection avec roi
 
     ext <- terra::rast(path_mini)
 
-    roi_rast <- terra::rasterize(roi %>% as("SpatVector"), ext)
-    inter <- c(roi_rast, ext) %>% terra::as.data.frame()
-    px <- inter[[2]][inter[[1]] == 1]
-    taux[[basename(i_ms)]] <- sum(px, na.rm = TRUE) / length(px)
+    vext <- terra::as.polygons(ext)
+
+    names(vext) <- "sp"
+
+    taux[[basename(i_ms)]] <-
+      terra::intersect(roi %>% dplyr::select("id") %>% as("SpatVector"), vext) %>%
+      sf::st_as_sf() %>%
+      dplyr::filter(sp == 1) %>%
+      dplyr::mutate(area = sf::st_area(.) %>% as.numeric()) %>%
+      pull(area) %>% sum(na.rm = TRUE) / area_roi
+
+    # masques nuages
+
+    msk <- spot.clouds(i_ms)
+
+    if(is.null(msk)){
+      tx_clouds[[basename(i_ms)]] <- 0
+      tx_snow[[basename(i_ms)]] <- 0
+    }else{
+
+      i_msk <- terra::intersect(roi %>% dplyr::select("id") %>% as("SpatVector"), msk %>% as("SpatVector")) %>%
+        sf::st_as_sf() %>%
+        dplyr::mutate(area = sf::st_area(.) %>% as.numeric()) %>%
+        dplyr::group_by(maskType) %>%
+        dplyr::summarise(tx = sum(area, na.rm = TRUE) / area_roi)
+
+      txc <- i_msk %>% dplyr::filter(maskType == "CLOUD") %>% dplyr::pull(tx)
+      txs <- i_msk %>% dplyr::filter(maskType == "SNOW") %>% dplyr::pull(tx)
+
+      if(length(txc) == 0) txc <- 0
+      if(length(txs) == 0) txs <- 0
+
+      tx_clouds[[basename(i_ms)]] <- txc
+      tx_snow[[basename(i_ms)]] <- txs
+    }
   }
 
   # table des images disponibles
@@ -141,6 +182,8 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
     dplyr::left_join(
       data.frame(file = names(taux),
                  couverture = unlist(taux) * 100,
+                 nuages = unlist(tx_clouds) * 100,
+                 neige = unlist(tx_snow) * 100,
                  stringsAsFactors = FALSE),
       by = "file"
     ) %>%
@@ -154,18 +197,67 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
     return(tb_info)
   }
 
-  # choix des images par années ---------------------------------------------------------------
-  # couverture max, puis jour optimal: préférer
-  # le début de saison de végétation (évite les colorations automnales) après débourrement complet
-
   if(tb_info$couverture %>% na.omit() %>% length() == 0){
     oiseauUtil::util_msg("Aucune image spot n'est disponible pour cette zone")
   }
 
+  tb_info <- tb_info %>% dplyr::filter(!is.na(couverture))
+
+  # images déjà enregistrées -----------------------------------
+
+  if(file.exists(destpath)){
+    spot_old <- uRast("spot")
+    dates_old <- terra::time(spot_old) %>% unique()
+  }else{
+    dates_old <- NULL
+  }
+
+  ans_cherche <- tb_info$an %>% unique() %>% sort()
+
+  if(!force){
+    ans_cherche <- ans_cherche[! ans_cherche %in% format(dates_old, "%Y")]
+  }
+
+  if(!is.null(spec_date)){
+
+    if(!is.na(stringr::str_match("2029", "^20[1-2][0-9]$") %>% as.character())){
+
+      # date_spec au format année
+
+      if(!spec_date %in% ans_cherche){
+        util_log("spot_data", paste0("L'année ", spec_date, " spécifiquement demandée n'est pas disponible."))
+        return("ko")
+      }
+
+      ans_cherche <- spec_date
+
+    }else{
+
+      if(! as.character(spec_date) %in% tb_info$date){
+        util_log("spot_data", paste0("La date spécifiquement demandée n'existe pas: ", spec_date))
+        return("ko")
+      }
+
+      ans_cherche <- as.Date(spec_date) %>% format("%Y")
+
+    }
+  }
+
+  if(length(ans_cherche) == 0){
+
+    message("images SPOT à jour.")
+    return(NULL)
+  }
+
+
+  # choix des images par années ---------------------------------------------------------------
+  # couverture max, puis jour optimal: préférer
+  # le début de saison de végétation (évite les colorations automnales) après débourrement complet
+
   tmpdir <- tempfile()
   dir.create(tmpdir)
 
-  for(an_ in unique(tb_info$an)){
+  for(an_ in ans_cherche){
 
     tb_info_select <- tb_info %>% dplyr::filter(an == an_ & !is.na(couverture) & couverture != 0) %>%
       dplyr::arrange(diff_opti)
@@ -194,8 +286,8 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
           pf <- stringr::str_split(pf, " xxx ", simplify = TRUE)[1,]
           ls_rast <- purrr::map(pf, ~ tryCatch(
             terra::rast(.x) %>% terra::crop(roi2),
-                                            error = function(e){NULL}
-            ))
+            error = function(e){NULL}
+          ))
           source <- terra::sprc(ls_rast[which(!purrr::map_lgl(ls_rast, is.null))])
           pa <- terra::merge(source)
         }else{
@@ -239,11 +331,21 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
       pan <- terra::crop(pan_tot, roi2)
       multi <- terra::crop(ms_tot, roi2)
 
-      result <- pansharp(pan, multi, destination = file.path(tmpdir,
+      result0 <- pansharp(pan, multi, destination = file.path(tmpdir,
                                                              paste0(tb_info_select$date,
                                                                     ".tif")))
 
-      # terra::terraOptions(todisk = FALSE)
+      # masque climatiquue
+
+      msk <- spot.clouds(msf)
+
+      if(is.null(msk)){
+        result <- result0
+      }else{
+        result <- terra::mask(result0,
+                              msk)
+      }
+
 
       message("image SPOT du ", tb_info_select$date, " créée.")
 
@@ -252,6 +354,8 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
   }
 
   # écriture série temporelle --------------------------------------------------
+
+  ras <- terra::rast(list.files(tmpdir, full.names = TRUE))
 
   ls <- purrr::map(list.files(tmpdir, full.names = TRUE), function(x){
     r <- terra::rast(x)
@@ -264,18 +368,28 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
 
   cls <- do.call(c, ls)
 
-  col <- c("red", "green", "blue", "ir")
-  names(col) <- col
+  data.ras_merge(cls, var = "spot", dest = destpath)
 
-  ls_cls <- purrr::map(col, ~cls[[which(names(cls) == .x)]])
 
-  tifs <- terra::sds(ls_cls)
 
-  unlink(destpath)
 
-  terra::writeCDF(tifs, destpath, overwrite = TRUE)
-
-  unlink(tmpdir, recursive = TRUE)
+  #
+  #
+  #
+  #
+  #
+  #   col <- c("red", "green", "blue", "ir")
+  #   names(col) <- col
+  #
+  #   ls_cls <- purrr::map(col, ~cls[[which(names(cls) == .x)]])
+  #
+  #   tifs <- terra::sds(ls_cls)
+  #
+  #   unlink(destpath)
+  #
+  #   terra::writeCDF(tifs, destpath, overwrite = TRUE)
+  #
+  #   unlink(tmpdir, recursive = TRUE)
 
   oiseauUtil::util_msg("Série temporelle SPOT extraite.", notification = TRUE)
 

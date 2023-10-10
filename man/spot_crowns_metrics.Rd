@@ -12,7 +12,8 @@ spot_crowns_metrics(
   path_mnt = oiseauData::data_conf("path_mnt"),
   buffer = oiseauData::data_conf("buffer"),
   mask = oiseauData::data_conf("shp"),
-  lim_h_rege = oiseauData::data_conf("lim_h_rege")
+  lim_h_rege = oiseauData::data_conf("lim_h_rege"),
+  best_day = oiseauData::data_conf("spot_best_day")
 )
 }
 \arguments{

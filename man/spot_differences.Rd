@@ -5,33 +5,34 @@
 \title{Détection des houppiers disparus entre deux dates}
 \usage{
 spot_differences(
+  an = 0,
   ext = oiseauData::data_conf("shp"),
   path_spot_ts = oiseauData::data_conf("path_spot_ts"),
+  path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
   path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
-  path_mnh_dead_ts = oiseauData::data_conf("path_mnh_dead_ts"),
-  an = oiseauData::data_conf("an1"),
+  path_deads_ts = oiseauData::data_conf("path_deads_ts"),
   buffer = oiseauData::data_conf("buffer"),
   spot_best_day = oiseauData::data_conf("spot_best_day"),
-  formula = oiseauSpot::spot_indice("NDVI")
+  indice = "ndvi"
 )
 }
 \arguments{
-\item{ext}{sf de découpage}
-
 \item{an}{année du MNH}
 
-\item{buffer}{buffer à appliquer à ext}
+\item{ext}{sf de découpage}
 
-\item{formula}{formule de l'indice utilisé, par défaut log(spot$ir/spot$g) où ir=infra r=rouge g=vert b=bleu. Voir https://www.indexdatabase.de/db/s-single.php?id=173}
+\item{buffer}{buffer à appliquer à ext}
 
 \item{paths}{liste des chemins d'images spot d'une même tuile, nommée par l'année de prise de vue}
 
 \item{path_mnh}{chemin vers le MNH (résolution 1m)}
 
+\item{formula}{formule de l'indice utilisé, par défaut log(spot$ir/spot$g) où ir=infra r=rouge g=vert b=bleu. Voir https://www.indexdatabase.de/db/s-single.php?id=173}
+
 \item{mask_mnh}{pour les mises à jour annuelles de MHN: spatraster 0/1, où 0 correspond aux couronnes disparues les années précédentes}
 }
 \value{
-spatRaster
+spatRaster   nommé dif + indice + date1 + date0 (ex: "Dif ndvi 2023-05-06 2022-06-07")
 }
 \description{
 Détection des houppiers disparus entre deux dates

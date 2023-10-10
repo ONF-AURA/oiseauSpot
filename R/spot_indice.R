@@ -14,7 +14,7 @@
 #' @export
 #'
 spot_indice <- function(
-    choix_crowns = "last",
+    date_crowns = "last",
     date_spot,
     crowns = TRUE,
     shp_roi = oiseauData::data_conf("shp"),
@@ -28,67 +28,32 @@ spot_indice <- function(
 
 # raster des indices par pixel ----------------------------------
 
-  spots <- terra::rast(path_spot_ts)
+  message("Calcul des indices", paste(indice, collapse = " + "), "de l'image Spot", date_spot, "...")
 
-  sel <- which(as.Date(terra::time(spots)) == as.Date(date_spot))
+  spot <- uRast("spot", date = date_spot)
 
-  if(length(sel) == 0){
+  if(length(spot) == 0){
     oiseauUtil::util_log("spot_indice", paste0("L'image SPOT du ", date_spot, " n'existe pas"))
     return("ko")
   }
 
-  spot <- spots[[sel]]
-  names(spot) <- terra::varnames(spot)
+
 
   ind <- eval(parse(text = stringr::str_replace_all(spot_formula(indice), "spot", "spot")))
 
-  if(crowns & !file.exists(path_tab_crowns)){
-
-    oiseauUtil::util_log("spot_indice", paste0("Aucun raster de couronnes n'est disponible. Le raster des indices par pixel est renvoyé."))
-    crowns <- FALSE
-
-  }else{
-
-    meta <- read.csv(path_tab_crowns, stringsAsFactors = FALSE)
-    dates_cr <- meta %>% dplyr::filter(origine == "id")
-
-
-    if(choix_crowns == "last"){
-
-      date_crowns <- dates_cr %>% dplyr::arrange(desc(date)) %>% dplyr::slice(1) %>% dplyr::pull(date)
-
-    }else{
-
-      check <- oiseauUtil::util_is_date(choix_crowns, "spot")
-
-      if(check == "ko") crowns <- FALSE
-
-
-      if(! choix_crowns %in% dates_cr$date){
-        oiseauUtil::util_log("spot_indice", paste0("Le raster des couronnes du ", choix_crowns, " n'existe pas."))
-
-        crowns <- FALSE
-      }
-
-    }
-
-  }
 
   if(!crowns) return(ind)
 
   # raster des indices par couronne --------------------------
 
 
-  if(is.null(path_crowns_ts)){
-    message("MNH non fourni: si vous disposez d'un MNH, la prédiction sera améliorée.")
-    return(ind)
-  }else{
+    cr0 <- uRast("crowns", origine = "id", date = date_crowns, path = path_crowns_ts, path_meta = path_tab_crowns)
 
-    mnhs <- terra::rast(path_crowns_ts)
-    mnh <- mnhs[[as.Date(terra::time(mnhs)) == as.Date(date_crowns)]]
 
-    cr0 <- terra::rast(path_crowns_ts)
-    cr0 <- cr0[[as.Date(terra::time(cr0)) == as.Date(date_crowns)]]
+  if(length(cr0) == 0){
+    oiseauUtil::util_log("spot_indice", paste0("Le raster des couronnes (crowns) n'existe pas."))
+    return("ko")
+  }
 
     cr <- terra::as.polygons(cr0)
 
@@ -101,7 +66,7 @@ spot_indice <- function(
 
     ind <- as(shp, "SpatVector") %>% terra::rasterize(ind, "i")
 
-    terra::time(ind) <- as.Date(date_crowns)
+    terra::time(ind) <- terra::time(cr0)
     names(ind) <- paste(indice, date_spot, collapse = "::")
 
     oiseauData::data.ras_merge(ind,
@@ -115,4 +80,4 @@ spot_indice <- function(
     ind
 
   }
-}
+

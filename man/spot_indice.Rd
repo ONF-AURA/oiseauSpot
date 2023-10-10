@@ -5,7 +5,7 @@
 \title{Indice de végétation des couronnes}
 \usage{
 spot_indice(
-  choix_crowns = "last",
+  date_crowns = "last",
   date_spot,
   crowns = TRUE,
   shp_roi = oiseauData::data_conf("shp"),
@@ -18,6 +18,8 @@ spot_indice(
 )
 }
 \arguments{
+\item{date_crowns}{date du MNH utilisé, ou 'last' pour utiliser le plus récent}
+
 \item{date_spot}{date de l'image SPOT utilisée}
 
 \item{crowns}{TRUE pour l'indice par couronne, sinon par pixel}
@@ -33,8 +35,6 @@ spot_indice(
 \item{buffer}{buffer à appliquer à shp_roi}
 
 \item{indice}{nom de l'indice utilisé, par défaut ndvi. voir spot_formula}
-
-\item{date_crowns}{date du MNH utilisé, ou 'last' pour utiliser le plus récent}
 }
 \value{
 spatRaster
