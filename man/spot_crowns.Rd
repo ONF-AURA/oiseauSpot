@@ -8,7 +8,7 @@ spot_crowns(
   date_mnh = "last",
   ext = oiseauData::data_conf("shp"),
   path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
-  path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
+  dest_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
   path_meta = oiseauData::data_conf("tab_crowns"),
   path_mnt = oiseauData::data_conf("path_mnt"),
   buffer = oiseauData::data_conf("buffer"),
@@ -26,6 +26,12 @@ spot_crowns(
 \item{ext}{polygone sf de l'étendue à détecter}
 
 \item{path_mnh_ts}{chemin du MNH}
+
+\item{dest_crowns_ts}{chemin du fichier d'écriture}
+
+\item{path_meta}{chemin du fichier des métadonnées}
+
+\item{path_mnt}{chemin du MNT}
 
 \item{buffer}{tampon à appliquer à exr}
 

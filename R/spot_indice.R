@@ -8,7 +8,7 @@
 #' @param path_spot_ts chemin vers le raster de série temporelle spot
 #' @param path_crowns_ts chemin vers le raster de série temporelle des couronnes (résolution 1m)
 #' @param path_tab_crowns chemin du fichier meta de la série temporelle des couronnes
-#' @param indice nom de l'indice utilisé, par défaut ndvi. voir spot_formula
+#' @param indice noms des indices utilisés, par défaut ndvi. voir spot_formula
 #'
 #' @return spatRaster
 #' @export
@@ -23,10 +23,10 @@ spot_indice <- function(
     path_tab_crowns = oiseauData::data_conf("tab_crowns"),
     path_mnt = oiseauData::data_conf("path_mnt"),
     buffer = oiseauData::data_conf("buffer"),
-    indice = "ndvi"
+    indice = c("ndvi", "bai", "savi")
 ){
 
-# raster des indices par pixel ----------------------------------
+  # raster des indices par pixel ----------------------------------
 
   message("Calcul des indices", paste(indice, collapse = " + "), "de l'image Spot", date_spot, "...")
 
@@ -38,16 +38,28 @@ spot_indice <- function(
   }
 
 
+  if(length(indice) == 1){
+    indice <- list(i = indice)
+  }else if(!inherits(indice, "list")){
+    indice <- as.list(indice)
+  }
 
-  ind <- eval(parse(text = stringr::str_replace_all(spot_formula(indice), "spot", "spot")))
+  names(indice) <- unlist(indice)
 
+  ind <- purrr::map(indice, ~eval(parse(text = stringr::str_replace_all(spot_formula(.x), "spot", "spot"))))
+
+  for(n in names(ind)){
+    names(ind[[n]]) <- n
+  }
+
+  ind <- terra::rast(ind)
 
   if(!crowns) return(ind)
 
   # raster des indices par couronne --------------------------
 
 
-    cr0 <- uRast("crowns", origine = "id", date = date_crowns, path = path_crowns_ts, path_meta = path_tab_crowns)
+  cr0 <- uRast("crowns", origine = "id", date = date_crowns, path = path_crowns_ts, path_meta = path_tab_crowns)
 
 
   if(length(cr0) == 0){
@@ -55,29 +67,33 @@ spot_indice <- function(
     return("ko")
   }
 
-    cr <- terra::as.polygons(cr0)
+  cr <- terra::as.polygons(cr0)
 
-    e <- terra::extract(ind, cr, fun = median, na.rm = TRUE)
+  e <- terra::extract(ind, cr, fun = median, na.rm = TRUE)
+
+  indcr <- list()
+
+  for(n in names(ind)){
 
     shp <- cr %>% sf::st_as_sf() %>%
-      dplyr::mutate(i = e$ir) %>%
+      dplyr::mutate(i = e[[n]]) %>%
       dplyr::select(i)
 
 
-    ind <- as(shp, "SpatVector") %>% terra::rasterize(ind, "i")
+    indcr[[n]] <- as(shp, "SpatVector") %>% terra::rasterize(ind[[n]], "i")
 
-    terra::time(ind) <- terra::time(cr0)
-    names(ind) <- paste(indice, date_spot, collapse = "::")
+    terra::time(indcr[[n]]) <- terra::time(cr0)
+    names(indcr[[n]]) <- paste(indice, date_spot, collapse = "::")
 
-    oiseauData::data.ras_merge(ind,
+    oiseauData::data.ras_merge(indcr[[n]],
                                var = "crowns",
                                dest = path_crowns_ts,
                                path_meta = path_tab_crowns,
                                path_mnt = path_mnt)
 
-
-
-    ind
-
   }
+
+  terra::rast(indcr)
+
+}
 

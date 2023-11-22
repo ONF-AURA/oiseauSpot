@@ -14,7 +14,7 @@ spot_indice(
   path_tab_crowns = oiseauData::data_conf("tab_crowns"),
   path_mnt = oiseauData::data_conf("path_mnt"),
   buffer = oiseauData::data_conf("buffer"),
-  indice = "ndvi"
+  indice = c("ndvi", "bai", "savi")
 )
 }
 \arguments{
@@ -34,7 +34,7 @@ spot_indice(
 
 \item{buffer}{buffer à appliquer à shp_roi}
 
-\item{indice}{nom de l'indice utilisé, par défaut ndvi. voir spot_formula}
+\item{indice}{noms des indices utilisés, par défaut ndvi. voir spot_formula}
 }
 \value{
 spatRaster

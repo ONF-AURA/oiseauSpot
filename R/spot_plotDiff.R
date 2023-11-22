@@ -5,6 +5,7 @@
 #' @param pal2 vcteur de couleurs pour carte des différence
 #' @param ID zoom sur un ID foncier ou NULL pour tout
 #' @param overlay couche vecteur à superposer (à défaut le shp foncier)
+#' @param rev TRUE si la disparition correspond à une baisse de l'indice, FALSE sinon
 #'
 #' @return plot
 #' @export
@@ -12,9 +13,12 @@
 
 spot_plotDiff <- function(diff, ID = NULL, overlay = oiseauData::data_conf("shp"),
                           pal1 =c("green", "yellow", "red"),
-                          pal2 = c("green", "green", "yellow", "red")){
+                          pal2 = c("green", "green", "yellow", "red"),
+                          rev = TRUE){
 
   # name(diff) = dif + indice + date1 + date0 (ex: "Dif ndvi 2023-05-06 2022-06-07)
+
+  if(rev) pal2 <- rev(pal2)
 
   nm <- stringr::str_split(names(diff), " ")[[1]][-1]
 

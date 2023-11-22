@@ -142,24 +142,38 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
 
     names(vext) <- "sp"
 
-    taux[[basename(i_ms)]] <-
+    inter <-
       terra::intersect(roi %>% dplyr::select("id") %>% as("SpatVector"), vext) %>%
-      sf::st_as_sf() %>%
-      dplyr::filter(sp == 1) %>%
-      dplyr::mutate(area = sf::st_area(.) %>% as.numeric()) %>%
-      pull(area) %>% sum(na.rm = TRUE) / area_roi
+      sf::st_as_sf()
+
+    if(nrow(inter) == 0){
+      taux[[basename(i_ms)]] <- 0
+    }else{
+      taux[[basename(i_ms)]] <- inter %>%
+        dplyr::filter(sp == 1) %>%
+        dplyr::mutate(area = sf::st_area(.) %>% as.numeric()) %>%
+        pull(area) %>% sum(na.rm = TRUE) / area_roi
+    }
 
     # masques nuages
 
-    msk <- spot.clouds(i_ms)
+    fun_msk <- function(i_ms, roi, inter){
 
-    if(is.null(msk)){
-      tx_clouds[[basename(i_ms)]] <- 0
-      tx_snow[[basename(i_ms)]] <- 0
-    }else{
+      if(nrow(inter) == 0) return(c(0, 0))
 
-      i_msk <- terra::intersect(roi %>% dplyr::select("id") %>% as("SpatVector"), msk %>% as("SpatVector")) %>%
-        sf::st_as_sf() %>%
+
+      if(taux[[basename(i_ms)]] > 0) return(c(0, 0))
+
+      msk <- spot.clouds(i_ms)
+
+      if(is.null(msk)) return(c(0, 0))
+
+      i_msk0 <- terra::intersect(roi %>% dplyr::select("id") %>% as("SpatVector"), msk %>% as("SpatVector")) %>%
+        sf::st_as_sf()
+
+      if(nrow(i_msk0) == 0) return(c(0, 0))
+
+      i_msk <- i_msk0 %>%
         dplyr::mutate(area = sf::st_area(.) %>% as.numeric()) %>%
         dplyr::group_by(maskType) %>%
         dplyr::summarise(tx = sum(area, na.rm = TRUE) / area_roi)
@@ -170,9 +184,15 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
       if(length(txc) == 0) txc <- 0
       if(length(txs) == 0) txs <- 0
 
-      tx_clouds[[basename(i_ms)]] <- txc
-      tx_snow[[basename(i_ms)]] <- txs
+      return(c(txc, txs))
+
     }
+
+    tx <- fun_msk(i_ms, roi, inter)
+
+    tx_clouds[[basename(i_ms)]] <- tx[1]
+    tx_snow[[basename(i_ms)]] <- tx[2]
+
   }
 
   # table des images disponibles
@@ -202,6 +222,7 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
   }
 
   tb_info <- tb_info %>% dplyr::filter(!is.na(couverture))
+
 
   # images déjà enregistrées -----------------------------------
 
@@ -270,10 +291,10 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
 
       imgs <- tb_info_select$img
 
+      path_ms_an <- tb_img %>% dplyr::filter(img == imgs[1] & band == "MS") %>% dplyr::pull(tif)
+
       roi2 <- roi %>% sf::st_buffer(buffer) %>%
-        sf::st_transform(terra::crs(terra::rast(
-          tb_img %>% dplyr::filter(img == imgs[1] & band == "MS") %>% dplyr::pull(tif)
-        )))
+        sf::st_transform(terra::crs(terra::rast(path_ms_an)))
 
       ls_img <- purrr::map(imgs, function(i){
 
@@ -298,8 +319,6 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
 
         msf <- tb_img %>% dplyr::filter(img == i & band == "MS") %>% dplyr::pull(tif)
         msa <- terra::rast(msf) %>% terra::crop(roi2)
-
-
 
         inter <- terra::intersect(
           roi2 %>%  as("SpatVector"),
@@ -332,18 +351,19 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
       multi <- terra::crop(ms_tot, roi2)
 
       result0 <- pansharp(pan, multi, destination = file.path(tmpdir,
-                                                             paste0(tb_info_select$date,
-                                                                    ".tif")))
+                                                              paste0(tb_info_select$date,
+                                                                     ".tif")))
 
       # masque climatiquue
 
-      msk <- spot.clouds(msf)
+      msk <- spot.clouds(path_ms_an)
 
       if(is.null(msk)){
         result <- result0
       }else{
         result <- terra::mask(result0,
                               msk)
+        message("Masque climatique appliqué sur l'image ", path_ms_an)
       }
 
 
@@ -368,28 +388,16 @@ spot_data <- function(dos_spot = oiseauData::data_conf("dos_spot"),
 
   cls <- do.call(c, ls)
 
+  tmpdos <- file.path(dirname(destpath), "tmp")
+
+  unlink(tmpdos, recursive = TRUE)
+
+  dir.create(tmpdos)
+
+  terra::writeRaster(cls, file.path(tmpdos, "tmp.tif"))
+
   data.ras_merge(cls, var = "spot", dest = destpath)
 
-
-
-
-  #
-  #
-  #
-  #
-  #
-  #   col <- c("red", "green", "blue", "ir")
-  #   names(col) <- col
-  #
-  #   ls_cls <- purrr::map(col, ~cls[[which(names(cls) == .x)]])
-  #
-  #   tifs <- terra::sds(ls_cls)
-  #
-  #   unlink(destpath)
-  #
-  #   terra::writeCDF(tifs, destpath, overwrite = TRUE)
-  #
-  #   unlink(tmpdir, recursive = TRUE)
 
   oiseauUtil::util_msg("Série temporelle SPOT extraite.", notification = TRUE)
 

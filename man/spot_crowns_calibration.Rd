@@ -7,8 +7,12 @@
 spot_crowns_calibration(
   path_points,
   y_name,
+  dest_name = y_name,
   title = "calibration",
+  date = "last",
   select_vars = TRUE,
+  exclude = c("dend"),
+  exclude_seuil = 0.05,
   path_crowns = oiseauData::data_conf("path_crowns_ts"),
   path_spot = oiseauData::data_conf("path_spot_ts"),
   dest_dos = dc("dos_modeles")
@@ -19,9 +23,17 @@ spot_crowns_calibration(
 
 \item{y_name}{nom du champ de la variable à prédire}
 
+\item{dest_name}{nom du raster en sortie}
+
 \item{title}{Nom donné au modèle}
 
+\item{date}{date du MNH à utiliser}
+
 \item{select_vars}{TRUE pour Utiliser une sélection automatique des variable}
+
+\item{exclude}{exclure des prédicteurs les familles dend(rométriques) topo(graphiques) spot insolation mnh area (surface)}
+
+\item{exclude_seuil}{taux de perte max de placettes tolérée en raison de données absentes avant exclusion de la variable}
 
 \item{path_crowns}{chemin du raster des couronnes}
 

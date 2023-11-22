@@ -10,6 +10,9 @@
 #' @param smooth fenêtre de lissage du mnh
 #' @param uniqueness incremental ou bitmerge
 #' @param return_apex si TRUE, renvoie une liste: crowns et apex
+#' @param dest_crowns_ts chemin du fichier d'écriture
+#' @param path_meta chemin du fichier des métadonnées
+#' @param path_mnt chemin du MNT
 #'
 #' @return spatvector des couronnes ou liste si return_apex
 #' @export
@@ -18,7 +21,7 @@ spot_crowns <- function(
     date_mnh = "last",
     ext = oiseauData::data_conf("shp"),
     path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
-    path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
+    dest_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
     path_meta = oiseauData::data_conf("tab_crowns"),
     path_mnt = oiseauData::data_conf("path_mnt"),
     buffer = oiseauData::data_conf("buffer"),
@@ -65,18 +68,24 @@ spot_crowns <- function(
 
   # utilise stars car pb raster not in memory et pb terra poj4...
 
-  h0r <- oiseauUtil::util_spat2rast(h0) %>%
-    stars::st_as_stars()
+  # h0r <- oiseauUtil::util_spat2rast(h0) %>%
+  #   stars::st_as_stars()
 
   a_sf <- sf::st_as_sf(a)
 
-  sf::st_crs(a_sf) <- sf::st_crs(h0r)
+  sf::st_crs(a_sf) <- crs(h0)
 
-  algo <- lidR::dalponte2016(stars::st_as_stars(h0r), a_sf)
+  h00 <- terra::wrap(h0)
+  h000 <- terra::unwrap(h00)
+
+  algo <- lidR::dalponte2016(h000, a_sf)
   cr_ini <- algo()
-  cr <- as(cr_ini, "Raster") %>% terra::rast()
+  # cr <- as(cr_ini, "Raster") %>% terra::rast()
+
+  cr <- cr_ini
   names(cr) <- "id"
 
+message("filtre des courones")
 
   crowns <- terra::as.polygons(cr) %>% sf::st_as_sf() %>%
     dplyr::mutate(area = sf::st_area(.) %>% as.numeric()) %>%
@@ -84,7 +93,7 @@ spot_crowns <- function(
     dplyr::select(-area) %>%
     as("SpatVector")
 
-  # écriture raster
+  message("écriture raster")
 
   mnt <- terra::rast(path_mnt)
   rcr <- terra::rasterize(crowns, mnt, field = "id")
@@ -93,7 +102,7 @@ spot_crowns <- function(
 
   oiseauData::data.ras_merge(rcr,
                  var = "crowns",
-                 dest = path_crowns_ts,
+                 dest = dest_crowns_ts,
                  path_meta = path_meta,
                  path_mnt = path_mnt)
 

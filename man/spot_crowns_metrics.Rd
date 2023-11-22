@@ -5,7 +5,7 @@
 \title{Rasters des métriques des couronnes}
 \usage{
 spot_crowns_metrics(
-  date_mnh,
+  date_mnh = util_get_date("last", "mnh"),
   path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
   path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
   path_meta = oiseauData::data_conf("tab_crowns"),
@@ -13,7 +13,10 @@ spot_crowns_metrics(
   buffer = oiseauData::data_conf("buffer"),
   mask = oiseauData::data_conf("shp"),
   lim_h_rege = oiseauData::data_conf("lim_h_rege"),
-  best_day = oiseauData::data_conf("spot_best_day")
+  best_day = oiseauData::data_conf("spot_best_day"),
+  dest_dir = dc("dos_modeles"),
+  spot_date = "last",
+  sentinel = TRUE
 )
 }
 \arguments{

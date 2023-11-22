@@ -9,7 +9,8 @@ spot_plotDiff(
   ID = NULL,
   overlay = oiseauData::data_conf("shp"),
   pal1 = c("green", "yellow", "red"),
-  pal2 = c("green", "green", "yellow", "red")
+  pal2 = c("green", "green", "yellow", "red"),
+  rev = TRUE
 )
 }
 \arguments{
@@ -22,6 +23,8 @@ spot_plotDiff(
 \item{pal1}{vecteur de couleurs pour carte d'indice}
 
 \item{pal2}{vcteur de couleurs pour carte des différence}
+
+\item{rev}{TRUE si la disparition correspond à une baisse de l'indice, FALSE sinon}
 }
 \value{
 plot

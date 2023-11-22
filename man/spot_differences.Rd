@@ -13,7 +13,7 @@ spot_differences(
   path_deads_ts = oiseauData::data_conf("path_deads_ts"),
   buffer = oiseauData::data_conf("buffer"),
   spot_best_day = oiseauData::data_conf("spot_best_day"),
-  indice = "ndvi"
+  indice = c("ndvi")
 )
 }
 \arguments{

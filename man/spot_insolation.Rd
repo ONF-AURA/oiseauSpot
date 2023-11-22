@@ -4,7 +4,13 @@
 \alias{spot_insolation}
 \title{Raster d'insolation}
 \usage{
-spot_insolation(mnh, mnt, ext, h_min = 3)
+spot_insolation(
+  mnh = uRast("mnh"),
+  mnt = uRast("mnt"),
+  ext = dc("shp"),
+  h_min = dc("lim_h_rege"),
+  dest = dc("path_insolation_ts")
+)
 }
 \arguments{
 \item{mnh}{liste de SpatRaster de hauteur (séries temporelles)}

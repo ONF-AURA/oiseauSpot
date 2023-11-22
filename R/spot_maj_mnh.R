@@ -54,7 +54,7 @@ spot_maj_mnh <- function(ext = oiseauData::data_conf("shp"),
 
 
 
-  maj <- function(date, n, ini = FALSE){
+  maj <- function(dates, n, ini = FALSE){
 
     date0 <- dates[n]
     date1 <- dates[n+1]
@@ -64,13 +64,17 @@ spot_maj_mnh <- function(ext = oiseauData::data_conf("shp"),
 
     ras_dif <- spot_differences(date1)
 
+    plot(ras_dif, main=paste("diff", date1, date0))
+
     ras_dif[ras_dif < seuil_diff_spot] <- 0
     ras_dif[ras_dif >= seuil_diff_spot] <- 1
 
+    plot(ras_dif, main=paste("deads", date1, date0))
+
     if(n == 1){
-      mnh0 <- uMnh(date_mnh, "-spot")
+      mnh0 <- uRast("mnh", date_mnh, "-spot")
     }else{
-      mnh0 <- uMnh(date0, "spot")
+      mnh0 <- uRast("mnh", date0, "spot")
     }
 
     mnh0c <- mnh0 * (1 - ras_dif)

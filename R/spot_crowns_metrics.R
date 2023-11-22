@@ -7,7 +7,7 @@
 #' @return spatRaster
 #' @export
 #'
-spot_crowns_metrics <- function(date_mnh,
+spot_crowns_metrics <- function(date_mnh = util_get_date("last", "mnh"),
                                 path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
                                 path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
                                 path_meta = oiseauData::data_conf("tab_crowns"),
@@ -15,10 +15,12 @@ spot_crowns_metrics <- function(date_mnh,
                                 buffer = oiseauData::data_conf("buffer"),
                                 mask = oiseauData::data_conf("shp"),
                                 lim_h_rege = oiseauData::data_conf("lim_h_rege"),
-                                best_day = oiseauData::data_conf("spot_best_day")
-){
+                                best_day = oiseauData::data_conf("spot_best_day"),
+                                dest_dir = dc("dos_modeles"),
+                                spot_date = "last",
+                                sentinel = TRUE
+                                ){
 
-  date_mnh <- oiseauUtil::util_is_date(date_mnh, "mnh")
 
   if(date_mnh == "ko"){
     return("ko")
@@ -32,7 +34,7 @@ spot_crowns_metrics <- function(date_mnh,
 
   crowns <- uRast("crowns", path = path_crowns_ts, path_meta = path_meta)
 
-  names(crowns) <- uMeta(path_meta)$origine
+  # names(crowns) <- uMet <- a(path_meta)$origine
 
   if(! date_mnh %in% as.character(terra::time(crowns))){
     oiseauUtil::util_log("spot_crowns_metrics", paste0("La date ", date_mnh, "n'est pas disponible dans la série temporelle des couronnes"))
@@ -40,74 +42,133 @@ spot_crowns_metrics <- function(date_mnh,
   }
   crowns <- crowns[[terra::time(crowns) %>% as.character() == date_mnh]]
 
-  # raster du MNH ---------------------------
 
-  mnh <- uMnh(path_mnh_ts, date = date_mnh)
+  # # données dérivés du MNH ------------------------
+  #
+  # mnh <- uRast("mnh", date = date_mnh)
+  #
+  # names(mnh) <- "h"
+  #
+  # pte <- terra::terrain(mnh, "slope") %>% terra::resample(mnh)
+  # names(pte) <- "pte"
+  #
+  # pte2 <- terra::terrain(pte, "slope") %>% terra::resample(mnh)
+  # names(pte2) <- "pte2"
+  #
+  # tpi <- terra::terrain(mnh, "TPI") %>% terra::resample(mnh)
+  # names(tpi) <- "tpi"
 
-  names(mnh) <- "h"
-
-  # rasters dérivés du MNH ------------------------
-
-  pte <- terra::terrain(mnh, "slope") %>% terra::resample(mnh)
-  names(pte) <- "pte"
-
-  pte2 <- terra::terrain(pte, "slope") %>% terra::resample(mnh)
-  names(pte2) <- "pte2"
-
-  tpi <- terra::terrain(mnh, "TPI") %>% terra::resample(mnh)
-  names(tpi) <- "tpi"
+  #
+  # # spot
+  #
+  # date_spot <- uDates() %>% dplyr::mutate(diff = abs(date %>% as.Date() - as.Date(util_get_date("last", "mnh")))) %>%
+  #   filter(var == "spot") %>%
+  #   filter(diff == min(diff)) %>%
+  #   dplyr::pull(date) %>% unique()
+  #
+  # sp <- uRast("spot", date = date_spot)
+  #
+  # sp$ndvi <- (sp$ir - sp$red) / (sp$ir + sp$red)
+  # # names(sp) <- paste(names(sp), terra::time(sp), sep = "_")
+  # sp <- sp %>% terra::resample(mnh)
 
   # synthèse par couronne ----------------------
 
-  pile <- c(mnh, pte, pte2, tpi, crowns) %>%
-    terra::mask(mask %>% sf::st_buffer(buffer) %>% as("SpatVector"))
+  # pile <- c(mnh, pte, pte2, tpi, crowns, sp) %>%
+  #   terra::mask(mask %>% sf::st_buffer(buffer) %>% as("SpatVector"))
 
+
+  # rasters de prediction
+
+  message("Constitution des rasters de prédiction")
+
+  pile0 <- util_predicteurs(res = 1, spot_date = spot_date)
+
+  pile <- c(crowns$id, pile0)
+
+  #
+
+  if(sentinel){
+
+    message("Images Sentinel...")
+
+    ansp <- util_get_date(spot_date, "spot") %>% as.Date() %>% format("%Y")
+
+    sen <- oiseauSentinel::sen_data(tmin = paste0(ansp, "-01-01"), tmax = paste0(ansp, "-12-31"))
+    sen <- uRast("sentinel")
+    sen1 <- sen %>% terra::resample(pile[[1]])
+
+    cr1 <- crowns$id %>% terra::as.polygons() %>% st_as_sf() %>%  sf::st_centroid()
+     data_sen <- terra::extract(sen1, cr1)
+
+     names(data_sen) <- c("id", paste(names(sen), terra::time(sen), sep = "_x_"))
+
+  }
+
+
+  message("Calcul des prédicteurs par couronne...")
 
   data0 <- terra::as.data.frame(pile, xy = TRUE) %>%
-    dplyr::filter(!is.nan(id)) %>%
-    dplyr::filter(h >= lim_h_rege)
+    dplyr::filter(!is.nan(id))
+    # dplyr::filter(mnh_h >= lim_h_rege)
 
-  data <- data0 %>%
+
+
+  data1 <- data0 %>%
     dplyr::group_by(id) %>%
-    dplyr::summarise(area = dplyr::n(),
-                     hmax = max(h, na.rm=TRUE),
-                     h5 = median(h, na.rm=TRUE),
-                     h1 = quantile(h, .9, na.rm=TRUE),
-                     ptm = mean(pte, na.rm=TRUE),
-                     pt5 = median(pte, na.rm=TRUE),
-                     pt9 = quantile(pte, .9, na.rm=TRUE),
-                     dpt = median(pte2, na.rm=TRUE),
-                     tpi5 = quantile(tpi, .5, na.rm=TRUE),
-                     tpi9 = quantile(tpi, .9, na.rm=TRUE)
-    ) %>%
-    dplyr::filter(area > 1)
+    dplyr::summarise(area = dplyr::n())
 
-  data_rcr <- terra::as.data.frame(crowns$id, na.rm = FALSE) %>%
-    dplyr::left_join(data, by = "id")
+  if(sentinel){
+    data1 <- data1 %>% left_join(data_sen, by = "id")
+  }
 
-  new_fact <- names(data_rcr %>% dplyr::select(-id))
+  data2 <- data0 %>%
 
-  ls_r <- purrr::map(new_fact,
-                     function(x){
-                       r <- crowns[[1]]
-                       terra::values(r) <- data_rcr[[x]]
-                       names(r) <- x
-                       r
-                     })
+    dplyr::group_by(id) %>%
+    dplyr::summarise(dplyr::across(-c(x,y), list(
+      moy = function(x){mean(x, na.rm = TRUE)},
+      med = function(x){median(x, na.rm = TRUE)},
+      q10 = function(x){quantile(x, .1, na.rm = TRUE) %>% as.numeric()},
+      q90 = function(x){quantile(x, .9, na.rm = TRUE) %>% as.numeric()},
+      sd = function(x){sd(x, na.rm = TRUE)}
+                                           )))
 
-  names(ls_r) <- new_fact
+  data <- data2 %>%
+    dplyr::left_join(data1, by="id") %>%
+    dplyr::filter(area > 1) # & mnh_h_q90 >= lim_h_rege)
 
-  rcr2 <- do.call(c, ls_r)
+  # data_rcr <- terra::as.data.frame(crowns$id, na.rm = FALSE) %>%
+  #   dplyr::left_join(data, by = "id")
+  #
+  # new_fact <- names(data_rcr %>% dplyr::select(-id))
+  #
+  # ls_r <- purrr::map(new_fact,
+  #                    function(x){
+  #                      r <- crowns[[1]]
+  #                      terra::values(r) <- data_rcr[[x]]
+  #                      names(r) <- x
+  #                      r
+  #                    })
+  #
+  # names(ls_r) <- new_fact
+  #
+  # rcr2 <- do.call(c, ls_r)
+  #
+  # new <- terra::rast(rcr2)
+  #
+  #
+  #
+  # oiseauData::data.ras_merge(new,
+  #                            var = "crowns",
+  #                            dest = path_crowns_ts,
+  #                            path_meta = path_meta,
+  #                            path_mnt = path_mnt)
 
-  new <- terra::rast(rcr2)
+  dest <- file.path(dest_dir, paste0("crowns_metrics_", date_mnh, ".rds"))
 
-  oiseauData::data.ras_merge(new,
-                             var = "crowns",
-                             dest = path_crowns_ts,
-                             path_meta = path_meta,
-                             path_mnt = path_mnt)
+  saveRDS(data, dest)
 
-  oiseauUtil::util_msg("Métriques des couronnes ajoutées.", notification = TRUE)
+  oiseauUtil::util_msg(paste("Métriques des couronnes suvegardées sous", dest), notification = TRUE)
 
 
 }
