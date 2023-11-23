@@ -8,12 +8,12 @@ spot_indice(
   date_crowns = "last",
   date_spot,
   crowns = TRUE,
-  shp_roi = oiseauData::data_conf("shp"),
-  path_spot_ts = oiseauData::data_conf("path_spot_ts"),
-  path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
-  path_tab_crowns = oiseauData::data_conf("tab_crowns"),
-  path_mnt = oiseauData::data_conf("path_mnt"),
-  buffer = oiseauData::data_conf("buffer"),
+  shp_roi = data_conf("shp"),
+  path_spot_ts = data_conf("path_spot_ts"),
+  path_crowns_ts = data_conf("path_crowns_ts"),
+  path_tab_crowns = data_conf("tab_crowns"),
+  path_mnt = data_conf("path_mnt"),
+  buffer = data_conf("buffer"),
   indice = c("ndvi", "bai", "savi")
 )
 }

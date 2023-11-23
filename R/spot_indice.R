@@ -17,12 +17,12 @@ spot_indice <- function(
     date_crowns = "last",
     date_spot,
     crowns = TRUE,
-    shp_roi = oiseauData::data_conf("shp"),
-    path_spot_ts = oiseauData::data_conf("path_spot_ts"),
-    path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
-    path_tab_crowns = oiseauData::data_conf("tab_crowns"),
-    path_mnt = oiseauData::data_conf("path_mnt"),
-    buffer = oiseauData::data_conf("buffer"),
+    shp_roi = data_conf("shp"),
+    path_spot_ts = data_conf("path_spot_ts"),
+    path_crowns_ts = data_conf("path_crowns_ts"),
+    path_tab_crowns = data_conf("tab_crowns"),
+    path_mnt = data_conf("path_mnt"),
+    buffer = data_conf("buffer"),
     indice = c("ndvi", "bai", "savi")
 ){
 
@@ -33,7 +33,7 @@ spot_indice <- function(
   spot <- uRast("spot", date = date_spot)
 
   if(length(spot) == 0){
-    oiseauUtil::util_log("spot_indice", paste0("L'image SPOT du ", date_spot, " n'existe pas"))
+    util_log("spot_indice", paste0("L'image SPOT du ", date_spot, " n'existe pas"))
     return("ko")
   }
 
@@ -63,7 +63,7 @@ spot_indice <- function(
 
 
   if(length(cr0) == 0){
-    oiseauUtil::util_log("spot_indice", paste0("Le raster des couronnes (crowns) n'existe pas."))
+    util_log("spot_indice", paste0("Le raster des couronnes (crowns) n'existe pas."))
     return("ko")
   }
 
@@ -85,7 +85,7 @@ spot_indice <- function(
     terra::time(indcr[[n]]) <- terra::time(cr0)
     names(indcr[[n]]) <- paste(indice, date_spot, collapse = "::")
 
-    oiseauData::data.ras_merge(indcr[[n]],
+    data.ras_merge(indcr[[n]],
                                var = "crowns",
                                dest = path_crowns_ts,
                                path_meta = path_tab_crowns,

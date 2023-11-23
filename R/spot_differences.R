@@ -14,13 +14,13 @@
 #' @export
 #'
 spot_differences <- function(an = 0,
-                             ext = oiseauData::data_conf("shp"),
-                             path_spot_ts = oiseauData::data_conf("path_spot_ts"),
-                             path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
-                             path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
-                             path_deads_ts = oiseauData::data_conf("path_deads_ts"),
-                             buffer = oiseauData::data_conf("buffer"),
-                             spot_best_day = oiseauData::data_conf("spot_best_day"), #"07-01",
+                             ext = data_conf("shp"),
+                             path_spot_ts = data_conf("path_spot_ts"),
+                             path_crowns_ts = data_conf("path_crowns_ts"),
+                             path_mnh_ts = data_conf("path_mnh_ts"),
+                             path_deads_ts = data_conf("path_deads_ts"),
+                             buffer = data_conf("buffer"),
+                             spot_best_day = data_conf("spot_best_day"), #"07-01",
                              indice = c("ndvi")
 ){
 
@@ -30,13 +30,13 @@ spot_differences <- function(an = 0,
   # }
 
   if(!file.exists(dc("path_crowns_ts"))){
-    oiseauUtil::util_log("spot_difference", "Le raster des couronnes est requis: essayez spot_crowns()")
+    util_log("spot_difference", "Le raster des couronnes est requis: essayez data_crowns()")
     return("ko")
   }
 
   # vérification des dates ---------------------------------
 
-  date1 <- oiseauUtil::util_get_date(an, "spot")
+  date1 <- util_get_date(an, "spot")
 
 
   if(as.character(date1) == "ko"){

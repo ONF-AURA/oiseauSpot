@@ -53,7 +53,7 @@ spot_perturbation <- function(lim, diff = NULL, ras_dif = NULL, liste_spots = NU
 
     layout(matrix(c(1,2), nrow = 1))
 
-    spot_plotRGB(spots, evo = test, sub = paste(sub, "\nseuil indic = ", lim),
+    visu_plotRGB(spots, evo = test, sub = paste(sub, "\nseuil indic = ", lim),
                  horizontal = horizontal, overlay = overlay, mask = mask, col = col)
 
     layout(1)

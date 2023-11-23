@@ -9,7 +9,7 @@
 #' @export
 #'
 spot_select_year <- function(an,
-                             path_spot_ts = oiseauData::data_conf("path_spot_ts"),
+                             path_spot_ts = data_conf("path_spot_ts"),
                              spot_best_day = dataOiseau::data_conf("spot_best_day"),
                              ifnull = c("prev", "next", "nothing")){
 

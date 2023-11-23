@@ -5,17 +5,17 @@
 \title{Mise à jour du MNH avec images spots}
 \usage{
 spot_maj_mnh(
-  ext = oiseauData::data_conf("shp"),
-  path_spot_ts = oiseauData::data_conf("path_spot_ts"),
-  path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
-  tab_mnh = oiseauData::data_conf("tab_mnh"),
-  path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
-  tab_crowns = oiseauData::data_conf("tab_crowns"),
-  tab_deads = oiseauData::data_conf("tab_deads"),
-  dest_deads = oiseauData::data_conf("path_deads_ts"),
-  dest_mnh = oiseauData::data_conf("path_mnh_ts"),
-  buffer = oiseauData::data_conf("buffer"),
-  seuil_diff_spot = oiseauData::data_conf("seuil_diff_spot"),
+  ext = data_conf("shp"),
+  path_spot_ts = data_conf("path_spot_ts"),
+  path_mnh_ts = data_conf("path_mnh_ts"),
+  tab_mnh = data_conf("tab_mnh"),
+  path_crowns_ts = data_conf("path_crowns_ts"),
+  tab_crowns = data_conf("tab_crowns"),
+  tab_deads = data_conf("tab_deads"),
+  dest_deads = data_conf("path_deads_ts"),
+  dest_mnh = data_conf("path_mnh_ts"),
+  buffer = data_conf("buffer"),
+  seuil_diff_spot = data_conf("seuil_diff_spot"),
   replace = FALSE
 )
 }

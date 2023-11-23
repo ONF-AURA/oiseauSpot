@@ -21,17 +21,17 @@
 #' @return liste des masques annuels à appliquer au MNT
 #' @export
 #'
-spot_maj_mnh <- function(ext = oiseauData::data_conf("shp"),
-                         path_spot_ts = oiseauData::data_conf("path_spot_ts"),
-                         path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
-                         tab_mnh = oiseauData::data_conf("tab_mnh"),
-                         path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
-                         tab_crowns = oiseauData::data_conf("tab_crowns"),
-                         tab_deads = oiseauData::data_conf("tab_deads"),
-                         dest_deads = oiseauData::data_conf("path_deads_ts"),
-                         dest_mnh = oiseauData::data_conf("path_mnh_ts"),
-                         buffer  = oiseauData::data_conf("buffer"),
-                         seuil_diff_spot = oiseauData::data_conf("seuil_diff_spot"),
+spot_maj_mnh <- function(ext = data_conf("shp"),
+                         path_spot_ts = data_conf("path_spot_ts"),
+                         path_mnh_ts = data_conf("path_mnh_ts"),
+                         tab_mnh = data_conf("tab_mnh"),
+                         path_crowns_ts = data_conf("path_crowns_ts"),
+                         tab_crowns = data_conf("tab_crowns"),
+                         tab_deads = data_conf("tab_deads"),
+                         dest_deads = data_conf("path_deads_ts"),
+                         dest_mnh = data_conf("path_mnh_ts"),
+                         buffer  = data_conf("buffer"),
+                         seuil_diff_spot = data_conf("seuil_diff_spot"),
                          replace = FALSE
 ){
 
@@ -79,14 +79,14 @@ spot_maj_mnh <- function(ext = oiseauData::data_conf("shp"),
 
     mnh0c <- mnh0 * (1 - ras_dif)
 
-    oiseauData::data.mnh_merge(mnh0c, dest_mnh,
+    data.mnh_merge(mnh0c, dest_mnh,
                                date_new = as.character(date1),
                                origine_new = "spot",
                                path_meta = tab_mnh)
 
 
 
-    oiseauData::data.ras_merge(ras_dif, "deads",
+    data.ras_merge(ras_dif, "deads",
                                dest = dest_deads,
                                date_new = as.character(date1),
                                path_meta = tab_deads

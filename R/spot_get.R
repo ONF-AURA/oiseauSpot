@@ -1,6 +1,6 @@
 #' Série temporelle des images spot
 #'
-#' @param paths liste des chemins d'images spot d'une même tuile. Si non généré par spot_data(), nommée par l'année de prise de vue
+#' @param paths liste des chemins d'images spot d'une même tuile. Si non généré par data_spot(), nommée par l'année de prise de vue
 #' @param ext sf de découpage
 #' @param buffer buffer à appliquer à ext
 #' @param ignore liste des dates à ignorer, au format 2022-02-25
@@ -23,7 +23,7 @@ spot_get <- function(paths, ext = NULL, buffer = 10, ignore = NULL, template = N
 
   if(is.null(names(paths))){
 
-    # noms issus de spot_data: spot20220602.tif
+    # noms issus de data_spot: spot20220602.tif
     # ne conserver qu'une image par an
 
     if(!is.null(ignore)){

@@ -1,21 +1,21 @@
 #' Rasters des métriques des couronnes
 #'
 #' @param date_mnh date du MNH à utiliser
-#' @param crowns raster des couronnes issu de spot_crowns
+#' @param crowns raster des couronnes issu de data_crowns
 #' @param mnh
 #'
 #' @return spatRaster
 #' @export
 #'
-spot_crowns_metrics <- function(date_mnh = util_get_date("last", "mnh"),
-                                path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
-                                path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
-                                path_meta = oiseauData::data_conf("tab_crowns"),
-                                path_mnt = oiseauData::data_conf("path_mnt"),
-                                buffer = oiseauData::data_conf("buffer"),
-                                mask = oiseauData::data_conf("shp"),
-                                lim_h_rege = oiseauData::data_conf("lim_h_rege"),
-                                best_day = oiseauData::data_conf("spot_best_day"),
+md_crowns_metrics <- function(date_mnh = util_get_date("last", "mnh"),
+                                path_mnh_ts = data_conf("path_mnh_ts"),
+                                path_crowns_ts = data_conf("path_crowns_ts"),
+                                path_meta = data_conf("tab_crowns"),
+                                path_mnt = data_conf("path_mnt"),
+                                buffer = data_conf("buffer"),
+                                mask = data_conf("shp"),
+                                lim_h_rege = data_conf("lim_h_rege"),
+                                best_day = data_conf("spot_best_day"),
                                 dest_dir = dc("dos_modeles"),
                                 spot_date = "last",
                                 sentinel = TRUE
@@ -27,7 +27,7 @@ spot_crowns_metrics <- function(date_mnh = util_get_date("last", "mnh"),
   }
 
   if(!file.exists(path_mnh_ts)){
-    oiseauUtil::util_log("spot_crowns_metrics", paste("Le MNH n'existe pas."))
+    util_log("md_crowns_metrics", paste("Le MNH n'existe pas."))
   }
 
   # raster des couronnes -------------------
@@ -37,7 +37,7 @@ spot_crowns_metrics <- function(date_mnh = util_get_date("last", "mnh"),
   # names(crowns) <- uMet <- a(path_meta)$origine
 
   if(! date_mnh %in% as.character(terra::time(crowns))){
-    oiseauUtil::util_log("spot_crowns_metrics", paste0("La date ", date_mnh, "n'est pas disponible dans la série temporelle des couronnes"))
+    util_log("md_crowns_metrics", paste0("La date ", date_mnh, "n'est pas disponible dans la série temporelle des couronnes"))
     return("ko")
   }
   crowns <- crowns[[terra::time(crowns) %>% as.character() == date_mnh]]
@@ -82,7 +82,7 @@ spot_crowns_metrics <- function(date_mnh = util_get_date("last", "mnh"),
 
   message("Constitution des rasters de prédiction")
 
-  pile0 <- util_predicteurs(res = 1, spot_date = spot_date)
+  pile0 <- md_predicteurs(res = 1, spot_date = spot_date)
 
   pile <- c(crowns$id, pile0)
 
@@ -158,7 +158,7 @@ spot_crowns_metrics <- function(date_mnh = util_get_date("last", "mnh"),
   #
   #
   #
-  # oiseauData::data.ras_merge(new,
+  # data.ras_merge(new,
   #                            var = "crowns",
   #                            dest = path_crowns_ts,
   #                            path_meta = path_meta,
@@ -168,7 +168,7 @@ spot_crowns_metrics <- function(date_mnh = util_get_date("last", "mnh"),
 
   saveRDS(data, dest)
 
-  oiseauUtil::util_msg(paste("Métriques des couronnes suvegardées sous", dest), notification = TRUE)
+  util_msg(paste("Métriques des couronnes suvegardées sous", dest), notification = TRUE)
 
 
 }

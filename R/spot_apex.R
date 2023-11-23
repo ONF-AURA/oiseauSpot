@@ -13,7 +13,7 @@
 spot_apex <- function(h, lim_h_rege = 3, pente = .07, intercept = 2, smooth = 5, uniqueness = "incremental"){
 
   if(terra::res(h) > 1.1){
-    oiseauUtil::util_log("spot_apex", paste("La résolution du MNH est insuffisante."))
+    util_log("spot_apex", paste("La résolution du MNH est insuffisante."))
     return("ko")
   }
 

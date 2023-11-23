@@ -7,7 +7,7 @@
 spot_plotDiff(
   diff,
   ID = NULL,
-  overlay = oiseauData::data_conf("shp"),
+  overlay = data_conf("shp"),
   pal1 = c("green", "yellow", "red"),
   pal2 = c("green", "green", "yellow", "red"),
   rev = TRUE

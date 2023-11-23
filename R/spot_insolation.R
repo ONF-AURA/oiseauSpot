@@ -20,7 +20,7 @@ spot_insolation <- function(mnh = uRast("mnh"),
 
     message("Insolation du ", terra::time(mnh)[n], "...")
 
-    insol <- spot_sun(spot_spat2rast(mnt + mnh[[n]]))
+    insol <- spot_sun(util_spat2rast(mnt + mnh[[n]]))
 
     insol_rege <- terra::rast(insol) %>% terra::crop(mnh[[1]])
     insol_rege[mnh[[n]] > h_min] <- NA

@@ -6,13 +6,13 @@
 \usage{
 spot_differences(
   an = 0,
-  ext = oiseauData::data_conf("shp"),
-  path_spot_ts = oiseauData::data_conf("path_spot_ts"),
-  path_crowns_ts = oiseauData::data_conf("path_crowns_ts"),
-  path_mnh_ts = oiseauData::data_conf("path_mnh_ts"),
-  path_deads_ts = oiseauData::data_conf("path_deads_ts"),
-  buffer = oiseauData::data_conf("buffer"),
-  spot_best_day = oiseauData::data_conf("spot_best_day"),
+  ext = data_conf("shp"),
+  path_spot_ts = data_conf("path_spot_ts"),
+  path_crowns_ts = data_conf("path_crowns_ts"),
+  path_mnh_ts = data_conf("path_mnh_ts"),
+  path_deads_ts = data_conf("path_deads_ts"),
+  buffer = data_conf("buffer"),
+  spot_best_day = data_conf("spot_best_day"),
   indice = c("ndvi")
 )
 }

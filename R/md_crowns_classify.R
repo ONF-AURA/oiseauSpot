@@ -11,11 +11,11 @@
 #' @export
 #'
 
-spot_crowns_classify <- function(ncat = 8,
+md_crowns_classify <- function(ncat = 8,
                           rm_size = TRUE,
                           dest_file = "class_crowns.tif",
-                          path_crowns = oiseauData::data_conf("path_crowns_ts"),
-                          path_spot = oiseauData::data_conf("path_spot_ts"),
+                          path_crowns = data_conf("path_crowns_ts"),
+                          path_spot = data_conf("path_spot_ts"),
                           dest_dos = dc("dos_spot")
                           ){
 
@@ -24,7 +24,7 @@ spot_crowns_classify <- function(ncat = 8,
   sp <- uRast("spot")
 
   if(! "hmax" %in% names(cr)){
-    oiseauUtil::util_log("spot_crowns_classify", "Les métriques des couronnes ne sont pas disponibles. Exécutez préalablement spot_crowns_metrics.")
+    util_log("md_crowns_classify", "Les métriques des couronnes ne sont pas disponibles. Exécutez préalablement md_crowns_metrics.")
     return("ko")
   }
 
@@ -69,7 +69,7 @@ spot_crowns_classify <- function(ncat = 8,
 
   terra::writeRaster(rcat, file.path(dest_dos, dest_file))
 
-  oiseauUtil::util_msg(
+  util_msg(
     paste("Raster écrit sous ",
           file.path(dest_dos, dest_file)),
     notification = TRUE)

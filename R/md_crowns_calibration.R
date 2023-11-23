@@ -16,7 +16,7 @@
 #' @export
 #'
 #' @examples
-spot_crowns_calibration <- function(path_points,
+md_crowns_calibration <- function(path_points,
                                     y_name,
                                     dest_name = y_name,
                                     title = "calibration",
@@ -24,8 +24,8 @@ spot_crowns_calibration <- function(path_points,
                                     select_vars = TRUE,
                                     exclude = c("dend"),
                                     exclude_seuil = .05,
-                                    path_crowns = oiseauData::data_conf("path_crowns_ts"),
-                                    path_spot = oiseauData::data_conf("path_spot_ts"),
+                                    path_crowns = data_conf("path_crowns_ts"),
+                                    path_spot = data_conf("path_spot_ts"),
                                     dest_dos = dc("dos_modeles")
 ){
 
@@ -33,7 +33,7 @@ spot_crowns_calibration <- function(path_points,
   points <- sf::read_sf(path_points)
 
   if(! y_name %in% names(points)){
-    oiseauUtil::util_log("spot_crowns_calibration",
+    util_log("md_crowns_calibration",
                          paste0("Le champ ", y_name, " n'existe pas dans la couche ", path_points))
     return("ko")
   }
@@ -51,7 +51,7 @@ spot_crowns_calibration <- function(path_points,
   # sp <- sp[[which(terra::time(sp) == date_sp)]]
 
   # if(! "hmax" %in% names(cr)){
-  #   oiseauUtil::util_log("spot_crowns_calibration", "Les métriques des couronnes ne sont pas disponibles. Exécutez préalablement spot_crowns_metrics.")
+  #   util_log("md_crowns_calibration", "Les métriques des couronnes ne sont pas disponibles. Exécutez préalablement md_crowns_metrics.")
   #   return("ko")
   # }
 
@@ -60,7 +60,7 @@ spot_crowns_calibration <- function(path_points,
     stringr::str_remove_all("crowns_metrics_")
 
   if(!date %in% dates_metrics){
-    message("Les métriques des couronnes ne sont pas disponibles pour le ", date, ".\nVoir spot_crowns_metrics()")
+    message("Les métriques des couronnes ne sont pas disponibles pour le ", date, ".\nVoir md_crowns_metrics()")
     return("ko")
   }
 
@@ -95,7 +95,7 @@ spot_crowns_calibration <- function(path_points,
     # stringr::str_split(names(e), "_", simplify = TRUE) %>% as.data.frame()
     nsel <- varSelRF::varSelRF(xdata = e %>% dplyr::select(-type), Class = e$type %>% as.factor())
 
-    oiseauUtil::util_msg("spot_crowns_calibration",
+    util_msg("md_crowns_calibration",
                          paste0("Données sélectionnées : ", paste(nsel$selected.vars, collapse = " + ")))
 
     sel <- e %>% dplyr::select(nsel$selected.vars)

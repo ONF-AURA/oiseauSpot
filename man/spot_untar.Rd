@@ -4,11 +4,7 @@
 \alias{spot_untar}
 \title{Import des images depuis le serveur THEIA}
 \usage{
-spot_untar(
-  path_tar = NULL,
-  dir = oiseauData::data_conf("dos_spot"),
-  unlink_tar = FALSE
-)
+spot_untar(path_tar = NULL, dir = data_conf("dos_spot"), unlink_tar = FALSE)
 }
 \arguments{
 \item{path_tar}{chemin contenant les fichiers .tar.gz téléchargés}

@@ -11,7 +11,7 @@
 #' @export
 #'
 
-spot_plotDiff <- function(diff, ID = NULL, overlay = oiseauData::data_conf("shp"),
+spot_plotDiff <- function(diff, ID = NULL, overlay = data_conf("shp"),
                           pal1 =c("green", "yellow", "red"),
                           pal2 = c("green", "green", "yellow", "red"),
                           rev = TRUE){

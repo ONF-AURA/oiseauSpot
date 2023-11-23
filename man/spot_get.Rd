@@ -7,7 +7,7 @@
 spot_get(paths, ext = NULL, buffer = 10, ignore = NULL, template = NULL)
 }
 \arguments{
-\item{paths}{liste des chemins d'images spot d'une même tuile. Si non généré par spot_data(), nommée par l'année de prise de vue}
+\item{paths}{liste des chemins d'images spot d'une même tuile. Si non généré par data_spot(), nommée par l'année de prise de vue}
 
 \item{ext}{sf de découpage}
 

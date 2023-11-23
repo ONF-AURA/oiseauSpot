@@ -11,7 +11,7 @@
 #'
 #'
 spot_untar <- function(path_tar = NULL,
-                       dir = oiseauData::data_conf("dos_spot"),
+                       dir = data_conf("dos_spot"),
                        unlink_tar = FALSE){
 
   Sys.umask(0)
