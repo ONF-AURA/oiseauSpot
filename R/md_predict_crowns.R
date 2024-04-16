@@ -5,12 +5,17 @@
 #' @param dir dossier du fichier
 #' @param res resolution des rasters d'extraction (defaut tiré du nom du fichier ...-res1-... = 1m)
 #' @param spot_an date de l'image spot uitilisée (defaut tiré du nom du fichier ...-spot2018-... = 2018)
+#' @param rsp_coper TRUE pour rééchantilloner les rasters Coprenicus
+#' @param dest
 #'
 #' @return spatraster
 #' @export
 #'
 #'
-md_predict_crowns <- function(mn, dir, res = NULL, spot_an = NULL, dest = file.path(dc("dos_modeles"))){
+md_predict_crowns <- function(mn, dir = dc("dos_modeles_oiseau"),
+                              res = NULL, spot_an = NULL,
+                              rsp_coper = FALSE,
+                              dest = dc("path_essences")){
 
 
   # mn <- "rf_ESS-res1-spot2018"
@@ -20,9 +25,7 @@ md_predict_crowns <- function(mn, dir, res = NULL, spot_an = NULL, dest = file.p
   # "/var/user/sdumas/oiseauX/rf_ESS-res1-spot2018.rds"
 
 
-  m <- readRDS(path)
-
-  vars <- m$importance %>% rownames()
+  mx <- readRDS(path)
 
   #  paramètres tirés du nom du modèle
 
@@ -36,40 +39,156 @@ md_predict_crowns <- function(mn, dir, res = NULL, spot_an = NULL, dest = file.p
       if(stringr::str_detect(mn, "-res")){
         res <- stringr::str_remove(prms[which(startsWith(prms, "res"))], "res") %>% as.numeric
       }else{
-        res <- 10
+        util_log("md_predict_crowns", "La résolution ne peut être extraite du nom du fichier rds du modèle: -res non trouvé")
+        return("ko")
       }
     }
 
     if(is.null(spot_an)){
       if(stringr::str_detect(mn, "-spot")){
-        an_spot <- stringr::str_remove(prms[which(startsWith(prms, "spot"))], "spot")
+        spot_an <- stringr::str_remove(prms[which(startsWith(prms, "spot"))], "spot")
       }else{
-        an_spot <- "last"
+        util_log("md_predict_crowns", "L'année de l'image spot utilisée ne peut être extraite du nom du fichier rds du modèle: -spot non trouvé")
+        return("ko")
       }
+    }
+
+    if("rsp" %in% prms){
+      rsp_coper <- TRUE
     }
   }
 
-  #
+  # ---------------
 
   crowns <- uRast("crowns","last")
+  dtc <- data_table_copernicus()
 
-  tav <- stringr::str_split(vars, "_", simplify = TRUE)
 
-  tav[tav == "topo"] <- "mnt"
-  tav <- cbind(tav, rep("last", nrow(tav)))
-  tav[which(tav[,1] == "spot"), 4] <- an_spot
+  ls_tav <- purrr::map(1:length(mx), function(i_model){
 
-  tav[tav == "med"] <- "median"
-  tav[tav == "moy"] <- "mean"
+    m <- mx[[i_model]]
 
-  tav <- cbind(tav, rep("", nrow(tav)))
+    vars <- m$importance %>% rownames()
 
-  tav[which(startsWith(tav[,3], "q")), 5] <- tav[which(startsWith(tav[,3], "q")), 3] %>% stringr::str_remove("q")
-  tav[which(startsWith(tav[,3], "q")), 3] <- "quantile"
+    # vars2 <- stringr::str_replace_all(vars, "_x_", "_")
+    # vars2 <- stringr::str_replace_all(vars2, "spot_", "spot-")
+
+
+    tav <- purrr::map_dfr(vars, function(v){
+
+      vv <- strsplit(v, "_")[[1]]
+
+      if(vv[1] %in% dtc$name){
+        # Copernicus
+        return(data.frame(origine = "copernicus", derive = vv[1], fun = vv[5],
+             date = as.character(vv[2]), param = "", vars = v, stringsAsFactors = FALSE))
+      }
+      if(vv[1] == "spot"){
+        # spot
+        return(data.frame(origine = vv[1], derive = vv[3], fun = vv[4],
+                          date = as.character(vv[2]), param = "", vars = v, stringsAsFactors = FALSE))
+      }
+      if(vv[1] == "topo"){
+        # topo
+        return(data.frame(origine = "mnt",
+                          derive = ifelse(vv[2] == "alti", "", vv[2]),
+                          fun = vv[3],
+                          date = "", param = "", vars = v, stringsAsFactors = FALSE))
+      }
+      if(vv[1] == "mnh"){
+        # mnh
+        return(data.frame(origine = "mnh",
+                          derive = ifelse(vv[2] == "h", "", vv[2]),
+                          fun = vv[3],
+                          date = ifelse(vv[2] == "dh", "all", "last"),
+                          param = "", vars = v, stringsAsFactors = FALSE))
+      }
+    })
+
+    # tav <- stringr::str_split(vars2, "_", simplify = TRUE)
+    #
+    # tav[tav == "topo"] <- "mnt"
+    # tav <- cbind(tav, rep("last", nrow(tav)))
+    #
+    # if(length(which(startsWith(tav[,1],  "spot"))) > 0){
+    # tav[which(startsWith(tav[,1],  "spot")), 4] <- tav[which(startsWith(tav[,1],  "spot")), 1]
+    # tav[which(startsWith(tav[,1],  "spot")), 1] <- stringr::str_split(
+    #   tav[which(startsWith(tav[,1],  "spot")), 1], "-", simplify = TRUE)[,1]
+    #
+    # tav[which(startsWith(tav[,1],  "spot")), 4] <- stringr::str_split(
+    #   tav[which(startsWith(tav[,1],  "spot")), 4], "-", simplify = TRUE)[,2]
+    # }
+
+    tav$fun[tav$fun == "med"] <- "median"
+    tav$fun[tav$fun == "moy"] <- "mean"
+
+    lines_q <- which(startsWith(tav$fun, "q"))
+
+    if(length(lines_q) > 0){
+      tav$param[lines_q] <- stringr::str_remove(tav$fun[lines_q], "q")
+      tav$fun[lines_q] <- "q"
+    }
+    # tav <- cbind(tav, rep("", nrow(tav)))
+
+    # tav[which(startsWith(tav[,3], "q")), 5] <- tav[which(startsWith(tav[,3], "q")), 3] %>% stringr::str_remove("q")
+    # tav[which(startsWith(tav[,3], "q")), 3] <- "quantile"
+
+    # tav <- cbind(tav, vars)
+    tav
+  })
+
+  tav_tot <- do.call(rbind, ls_tav) %>% #as.data.frame(stringsAsFactors = FALSE) %>%
+    filter(!duplicated(.))
+
+  # dh
+
+  if("dh" %in% tav_tot$derive){
+    tav_tot <- rbind(tav_tot,
+                     data.frame(
+                       origine = "mnh", derive = "", fun = "q", date = c("last", "first"),
+                       param = "90",
+                       vars = c("mnh_h_q90", "mnh_h0_q90")
+                     )) %>%
+      filter(derive != "dh") %>% # mnh_h0 présent déclanchera dh
+      filter(!duplicated(.))
+  }
+
+  # Construction des rasters prédicteurs -------------------------------------------
+
+  # Copernicus
+
+  # vars_start <- stringr::str_split(tav_tot$origine, "\\.", simplify = TRUE)[,1]
+  # w_coper <- which(vars_start %in% unique(dtc$name))
+
+  # if(length(w_coper) > 0){
+    if("copernicus" %in% tav_tot$origine){
+
+    # tav_cop <- tav_tot %>% slice(w_coper)
+    # df_cop <- dtc %>% filter(id %in% stringr::str_replace(tav_cop$origine, "\\.", " "))
+
+      id_tav <- tav_tot %>% filter(origine == "copernicus") %>%
+        mutate(iid =paste(derive, date)) %>% pull(iid)
+
+      df_cop <- dtc %>% filter(id %in% id_tav)
+
+    co <- data_copernicus(resample = rsp_coper, df_cop = df_cop)
+
+    co <- co[[stringr::str_replace_all(id_tav, " ", "_")]]
+
+    nms <- tav_tot %>% filter(origine == "copernicus") %>% pull(vars) %>% sort()
+    names(co) <- nms[order(names(co))]
+  }
+
+  # autres
+
+  tav <- tav_tot %>% filter(origine != "copernicus")
 
   ls <- purrr::map(1:nrow(tav), function(i){
-    ta <- tav[i,]
-    names(ta) <- c("origine", "derive", "fun", "date", "param")
+
+    print(i)
+
+    ta <- tav[i,] %>% as.character()
+    names(ta) <- names(tav)
 
     message("construction du raster prédictif ", toupper(paste(ta[1:2], collapse = " ")))
 
@@ -77,7 +196,10 @@ md_predict_crowns <- function(mn, dir, res = NULL, spot_an = NULL, dest = file.p
       return(data_bdforet(force=F))
     }
 
-    assign(ta["origine"], uRast(ta["origine"], date = ta["date"])) %>% terra::aggregate(res)
+
+
+    assign(ta["origine"],
+           uRast(ta["origine"], date = ta["date"])) %>% terra::aggregate(res)
 
 
     if(ta["origine"] == "spot"){
@@ -85,14 +207,14 @@ md_predict_crowns <- function(mn, dir, res = NULL, spot_an = NULL, dest = file.p
       if(ta["fun"] == "quantile"){
         fun <- function(x){quantile(x, ta["param"])}
       }else{
-        fun <- get(ta["fun"])
+        fun <- get(ta["fun"] %>% as.character())
       }
       print(spot_formula(ta["derive"]))
       return(eval(parse(text = spot_formula(ta["derive"]))))
 
     }else if(ta["origine"] %in% c("mnt", "mnh")){
 
-      if(ta["derive"] %in% c("h", "alti")){
+      if(ta["derive"] %in% c("")){
         return(get(ta["origine"]))
       }else{
         return(terra::terrain(get(ta["origine"]), ta["derive"]))
@@ -106,9 +228,13 @@ md_predict_crowns <- function(mn, dir, res = NULL, spot_an = NULL, dest = file.p
     }
   })
 
-  names(ls) <- vars
+  names(ls) <- tav$vars
 
   pile <- do.call(c, ls) %>% terra::rast()
+
+  if(exists("co")) pile <- c(pile, co %>% project(pile))
+
+
   pile$cr <- crowns
 
   # data <- terra::as.data.frame(pile, na.rm = TRUE) %>%
@@ -142,38 +268,81 @@ md_predict_crowns <- function(mn, dir, res = NULL, spot_an = NULL, dest = file.p
 
   data <- util_extract(pile, "cr")
 
+  # dh
 
-  message("prédiction Random Forest...")
+  if("mnh_h0_q90" %in% tav$vars){
+   data$mnh_dh <- data$mnh_h_q90 - data$mnh_h0_q90
+  }
 
-  library(randomForest)
+  lsr <- purrr::map(1:length(mx), function(i_model){
 
-  data$pred <- predict(m, data) %>% as.character()
+    message("prédiction Random Forest...")
+    m <- mx[[i_model]]
 
-  x <- terra::as.data.frame(pile$cr, na.rm = FALSE) %>%
-    left_join(data, by = "cr")
+    data$pred <- predict(m, data) %>% as.character()
 
-
-
-
-  destfile <- file.path(dest, paste0(tools::file_path_sans_ext(stringr::str_remove(mn, "rf_")), ".tif"))
-
-  message("rasterisation des résultats...")
+    x <- terra::as.data.frame(pile$cr, na.rm = FALSE) %>%
+      left_join(data, by = "cr")
 
 
-  templ <- uRast("mnt")
-  templ[!is.na(templ)] <- NA
+    message("rasterisation des résultats...")
 
-  terra::values(templ) <- x$pred
 
-  writeRaster(templ, destfile, overwrite = TRUE)
-  write.csv(cats(templ)[[1]], paste0(tools::file_path_sans_ext(destfile), ".csv"), row.names = FALSE)
+    templ <- uRast("mnt")
+    templ[!is.na(templ)] <- NA
+
+    terra::values(templ) <- x$pred
+
+    return(templ)
+  })
+
+
+  r <- rast(lsr)
+
+  names(r) <- names(mx)
+
+
+  df <- as.data.frame(r, na.rm = FALSE) %>%
+    mutate_all(as.character) %>%
+    mutate(ess = case_when(
+      famille == "RES" ~ res,
+      het == "HET" ~ "HET",
+      TRUE ~ af
+    )) %>% mutate(ess = as.factor(ess))
+
+
+  table(df$ess)
+
+  ess <- r$famille
+
+  cats(ess)
+  values(ess) <- df$ess
+
+  levels(ess) <- data.frame(
+    value = 1:length(levels(df$ess)),
+    label  = levels(df$ess),
+    stringsAsFactors = F
+  )
+
+  # visu_add_raster(ess, compare = TRUE)
+
+
+  cat_ess <- read.csv(file.path(system.file(package = "oiseauData"), "tables", "cat", "essences.csv"),
+                      stringsAsFactors = FALSE)
+
+  coltab(ess) <- cats(ess)[[1]] %>% left_join(cat_ess, by = c("label"="type")) %>%
+    select(value, couleur_groupe)
+
+
+  writeRaster(ess, dest, overwrite = TRUE)
+  write.csv(cats(ess)[[1]], paste0(tools::file_path_sans_ext(dest), ".csv"), row.names = FALSE)
 
   # rpred <- terra::rasterize(crv %>% as("SpatVector"), templ, field = "pred",
   #                           filename = destfile,
   #                           overwrite = TRUE
   #                           )
 
-  message("raster écrit sous ", destfile)
+  message("raster écrit sous ", dest)
 
-  templ
+  ess
 }

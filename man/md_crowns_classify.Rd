@@ -5,12 +5,15 @@
 \title{Classification automatique des couronnes}
 \usage{
 md_crowns_classify(
-  ncat = 8,
-  rm_size = TRUE,
+  ncat = NULL,
+  rm_size = FALSE,
   dest_file = "class_crowns.tif",
   path_crowns = data_conf("path_crowns_ts"),
-  path_spot = data_conf("path_spot_ts"),
-  dest_dos = dc("dos_spot")
+  dos_metrics = data_conf("dos_modeles"),
+  file_metrics = "crowns_metrics_.*.rds",
+  dest_dos = dc("dos_spot"),
+  plot = FALSE,
+  methode = "kmeans"
 )
 }
 \arguments{
@@ -22,9 +25,9 @@ md_crowns_classify(
 
 \item{path_crowns}{chemin du raster des couronnes}
 
-\item{path_spot}{chemin du rster des images spot}
-
 \item{dest_dos}{dossier d'écriture}
+
+\item{path_spot}{chemin du rster des images spot}
 }
 \value{
 spatRaster de catégories

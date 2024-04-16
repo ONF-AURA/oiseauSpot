@@ -8,23 +8,24 @@
 #' @export
 #'
 md_crowns_metrics <- function(date_mnh = util_get_date("last", "mnh"),
-                                path_mnh_ts = data_conf("path_mnh_ts"),
-                                path_crowns_ts = data_conf("path_crowns_ts"),
-                                path_meta = data_conf("tab_crowns"),
-                                path_mnt = data_conf("path_mnt"),
-                                buffer = data_conf("buffer"),
-                                mask = data_conf("shp"),
-                                lim_h_rege = data_conf("lim_h_rege"),
-                                best_day = data_conf("spot_best_day"),
-                                dest_dir = dc("dos_modeles"),
-                                spot_date = "last",
-                                sentinel = TRUE
-                                ){
+                              path_mnh_ts = data_conf("path_mnh_ts"),
+                              path_crowns_ts = data_conf("path_crowns_ts"),
+                              path_meta = data_conf("tab_crowns"),
+                              path_mnt = data_conf("path_mnt"),
+                              buffer = data_conf("buffer"),
+                              mask = data_conf("shp"),
+                              lim_h_rege = data_conf("lim_h_rege"),
+                              best_day = data_conf("spot_best_day"),
+                              dest_dir = dc("dos_modeles"),
+                              spot_date = "last",
+                              topo = TRUE, dendro = TRUE, spot = TRUE,
+                              insol = TRUE, mnh = TRUE,
+                              sentinel = TRUE,
+                              copernicus = TRUE,
+                              rsp_coper = FALSE
+){
 
 
-  if(date_mnh == "ko"){
-    return("ko")
-  }
 
   if(!file.exists(path_mnh_ts)){
     util_log("md_crowns_metrics", paste("Le MNH n'existe pas."))
@@ -36,7 +37,7 @@ md_crowns_metrics <- function(date_mnh = util_get_date("last", "mnh"),
 
   # names(crowns) <- uMet <- a(path_meta)$origine
 
-  if(! date_mnh %in% as.character(terra::time(crowns))){
+  if(! as.character(date_mnh) %in% as.character(terra::time(crowns))){
     util_log("md_crowns_metrics", paste0("La date ", date_mnh, "n'est pas disponible dans la série temporelle des couronnes"))
     return("ko")
   }
@@ -82,35 +83,22 @@ md_crowns_metrics <- function(date_mnh = util_get_date("last", "mnh"),
 
   message("Constitution des rasters de prédiction")
 
-  pile0 <- md_predicteurs(res = 1, spot_date = spot_date)
+  pile0 <- suppressMessages(md_predicteurs(res = 1, spot_date = spot_date,
+                          topo = topo, dendro = dendro, spot = spot, insol = insol, mnh = mnh,
+                          copernicus = copernicus, sentinel = sentinel, rsp_coper = rsp_coper)
+  )
 
   pile <- c(crowns$id, pile0)
 
   #
 
-  if(sentinel){
-
-    message("Images Sentinel...")
-
-    ansp <- util_get_date(spot_date, "spot") %>% as.Date() %>% format("%Y")
-
-    sen <- oiseauSentinel::sen_data(tmin = paste0(ansp, "-01-01"), tmax = paste0(ansp, "-12-31"))
-    sen <- uRast("sentinel")
-    sen1 <- sen %>% terra::resample(pile[[1]])
-
-    cr1 <- crowns$id %>% terra::as.polygons() %>% st_as_sf() %>%  sf::st_centroid()
-     data_sen <- terra::extract(sen1, cr1)
-
-     names(data_sen) <- c("id", paste(names(sen), terra::time(sen), sep = "_x_"))
-
-  }
 
 
   message("Calcul des prédicteurs par couronne...")
 
   data0 <- terra::as.data.frame(pile, xy = TRUE) %>%
     dplyr::filter(!is.nan(id))
-    # dplyr::filter(mnh_h >= lim_h_rege)
+  # dplyr::filter(mnh_h >= lim_h_rege)
 
 
 
@@ -118,9 +106,6 @@ md_crowns_metrics <- function(date_mnh = util_get_date("last", "mnh"),
     dplyr::group_by(id) %>%
     dplyr::summarise(area = dplyr::n())
 
-  if(sentinel){
-    data1 <- data1 %>% left_join(data_sen, by = "id")
-  }
 
   data2 <- data0 %>%
 
@@ -131,7 +116,9 @@ md_crowns_metrics <- function(date_mnh = util_get_date("last", "mnh"),
       q10 = function(x){quantile(x, .1, na.rm = TRUE) %>% as.numeric()},
       q90 = function(x){quantile(x, .9, na.rm = TRUE) %>% as.numeric()},
       sd = function(x){sd(x, na.rm = TRUE)}
-                                           )))
+    ))) %>%
+    dplyr::mutate(mnh_dh = mnh_h_q90 - mnh_h0_q90) %>%
+    dplyr::select(-starts_with("mnh_h0"))
 
   data <- data2 %>%
     dplyr::left_join(data1, by="id") %>%
@@ -171,4 +158,5 @@ md_crowns_metrics <- function(date_mnh = util_get_date("last", "mnh"),
   util_msg(paste("Métriques des couronnes suvegardées sous", dest), notification = TRUE)
 
 
+  data
 }

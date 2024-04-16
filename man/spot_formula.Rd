@@ -4,7 +4,10 @@
 \alias{spot_formula}
 \title{Formules d'indices de végétation SPOT}
 \usage{
-spot_formula(indice = c("ndvi", "gli", "logr", "bai", "savi"), list = FALSE)
+spot_formula(
+  indice = c("ndvi", "gli", "logr", "bai", "savi", "lai"),
+  list = FALSE
+)
 }
 \arguments{
 \item{indice}{nom de l'indice. Voir https://www.indexdatabase.de/db/s-single.php?id=173}

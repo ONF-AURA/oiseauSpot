@@ -22,6 +22,7 @@ md_spatialise <- function(
     buff_pla = 20,
     use_topo = TRUE, use_dendro = TRUE, use_spot = TRUE, use_insol = TRUE, use_couvert = TRUE,
     suppress_rasters_with_na = 0,
+    rsp_coper = FALSE,
     list_fac = FALSE
 ){
 
@@ -62,7 +63,8 @@ md_spatialise <- function(
   # prédicteurs --------------------------------------------
 
   pile <- md_predicteurs(topo = use_topo, dendro = use_dendro, spot = use_spot, insol = use_insol, couvert = use_couvert,
-                           suppress_rasters_with_na)
+                           suppress_rasters_with_na,
+                         rsp_coper = rsp_coper)
 
 
 

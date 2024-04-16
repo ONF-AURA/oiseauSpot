@@ -14,7 +14,8 @@ spot_indice(
   path_tab_crowns = data_conf("tab_crowns"),
   path_mnt = data_conf("path_mnt"),
   buffer = data_conf("buffer"),
-  indice = c("ndvi", "bai", "savi")
+  indice = c("ndvi", "bai", "savi"),
+  res = NULL
 )
 }
 \arguments{
@@ -32,9 +33,13 @@ spot_indice(
 
 \item{path_tab_crowns}{chemin du fichier meta de la série temporelle des couronnes}
 
+\item{path_mnt}{chemin du MNT}
+
 \item{buffer}{buffer à appliquer à shp_roi}
 
 \item{indice}{noms des indices utilisés, par défaut ndvi. voir spot_formula}
+
+\item{res}{NULL ou nouvelle résolution (m)}
 }
 \value{
 spatRaster

@@ -5,7 +5,11 @@
 \title{Récolte de données de calibration pour référence de fertilité}
 \usage{
 md_calibr_fertilite(
-  path_calibr = "/var/partage/oiseau/modeles/calib_fertilite.rds"
+  path_calibr = "/var/partage/oiseau/modeles/calib_fertilite.rds",
+  add = TRUE,
+  spat_filter = "CCOD_FRT",
+  by = "all",
+  plot = FALSE
 )
 }
 \arguments{

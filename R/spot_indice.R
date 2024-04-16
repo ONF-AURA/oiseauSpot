@@ -9,6 +9,8 @@
 #' @param path_crowns_ts chemin vers le raster de série temporelle des couronnes (résolution 1m)
 #' @param path_tab_crowns chemin du fichier meta de la série temporelle des couronnes
 #' @param indice noms des indices utilisés, par défaut ndvi. voir spot_formula
+#' @param path_mnt chemin du MNT
+#' @param res NULL ou nouvelle résolution (m)
 #'
 #' @return spatRaster
 #' @export
@@ -23,14 +25,22 @@ spot_indice <- function(
     path_tab_crowns = data_conf("tab_crowns"),
     path_mnt = data_conf("path_mnt"),
     buffer = data_conf("buffer"),
-    indice = c("ndvi", "bai", "savi")
+    indice = c("ndvi", "bai", "savi"),
+    res = NULL
 ){
 
   # raster des indices par pixel ----------------------------------
 
-  message("Calcul des indices", paste(indice, collapse = " + "), "de l'image Spot", date_spot, "...")
+  message("Calcul des indices ", paste(indice, collapse = " + "), "de l'image Spot ", date_spot, "...")
 
   spot <- uRast("spot", date = date_spot)
+
+  if(!is.null(res)){
+    if(crowns){
+      message("Argument res ignoré car crowns = TRUE")
+    }
+    spot <- spot %>% uResolution(res)
+  }
 
   if(length(spot) == 0){
     util_log("spot_indice", paste0("L'image SPOT du ", date_spot, " n'existe pas"))
@@ -67,25 +77,28 @@ spot_indice <- function(
     return("ko")
   }
 
-  cr <- terra::as.polygons(cr0)
+  names(ind) <- paste0(names(ind), "_med")
+  e <- util_extract(c(cr0, ind), names(cr0))
 
-  e <- terra::extract(ind, cr, fun = median, na.rm = TRUE)
+  v <- data.frame(id = values(cr0)) %>%
+    left_join(e, by = c("id"="cr"))
+
+
+
 
   indcr <- list()
 
   for(n in names(ind)){
 
-    shp <- cr %>% sf::st_as_sf() %>%
-      dplyr::mutate(i = e[[n]]) %>%
-      dplyr::select(i)
+    n0 <- stringr::str_remove(n, " _med")
 
+    indcr[[n0]] <- cr0
 
-    indcr[[n]] <- as(shp, "SpatVector") %>% terra::rasterize(ind[[n]], "i")
+    values(indcr[[n0]]) <- v[[n]]
+    terra::time(indcr[[n0]]) <- terra::time(cr0)
+    names(indcr[[n0]]) <- paste(indice, date_spot, collapse = "::")
 
-    terra::time(indcr[[n]]) <- terra::time(cr0)
-    names(indcr[[n]]) <- paste(indice, date_spot, collapse = "::")
-
-    data.ras_merge(indcr[[n]],
+    data.ras_merge(indcr[[n0]],
                                var = "crowns",
                                dest = path_crowns_ts,
                                path_meta = path_tab_crowns,

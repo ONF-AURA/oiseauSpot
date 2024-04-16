@@ -16,6 +16,7 @@ md_spatialise(
   use_insol = TRUE,
   use_couvert = TRUE,
   suppress_rasters_with_na = 0,
+  rsp_coper = FALSE,
   list_fac = FALSE
 )
 }

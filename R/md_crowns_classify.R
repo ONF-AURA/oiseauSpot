@@ -11,68 +11,101 @@
 #' @export
 #'
 
-md_crowns_classify <- function(ncat = 8,
-                          rm_size = TRUE,
-                          dest_file = "class_crowns.tif",
-                          path_crowns = data_conf("path_crowns_ts"),
-                          path_spot = data_conf("path_spot_ts"),
-                          dest_dos = dc("dos_spot")
-                          ){
+md_crowns_classify <- function(ncat = NULL,
+                               rm_size = FALSE,
+                               dest_file = "class_crowns.tif",
+                               path_crowns = data_conf("path_crowns_ts"),
+                               dos_metrics = data_conf("dos_modeles"),
+                               file_metrics = "crowns_metrics_.*.rds",
+                               dest_dos = dc("dos_spot"),
+                               plot = FALSE,
+                               methode = "kmeans"
+){
+
+  if(is.null(ncat)){
+    util_log("md_crowns_classify", "ncat obligatoire pour methode kmeans")
+    return("ko")
+  }
 
 
   cr <- uRast("crowns")
-  sp <- uRast("spot")
 
-  if(! "hmax" %in% names(cr)){
+  metrics <- list.files(dos_metrics, pattern = file_metrics, full.names = TRUE)
+
+  if(length(metrics) == 0){
     util_log("md_crowns_classify", "Les métriques des couronnes ne sont pas disponibles. Exécutez préalablement md_crowns_metrics.")
     return("ko")
   }
 
-  data <- terra::as.data.frame(c(cr, sp %>% terra::resample(cr)))
-  data_cr <- data %>%
-    dplyr::group_by(id) %>%
-    dplyr::summarise_all(mean)
+  if(length(metrics) > 1){
+    metrics = utils::select.list(metrics, title = "Plusieurs fichiers de métriques disponibles:")
+  }
+
+  tryCatch({
+    data <- readRDS(metrics)
+  },
+  error = function(e){
+    util_log("md_cronws_classify", "impossible d'ouvrir", metrics, ":\n", e)
+    return("ko")
+  })
 
 
-  new_data <- data_cr %>% dplyr::select(-id)
+  new_data <- data %>% na.omit()
 
   if(rm_size){
     new_data <- new_data %>%
-      dplyr::mutate(hpp = h1/h5) %>%
+      # dplyr::mutate(hpp = h1/h5) %>%
       dplyr::select(-dplyr::any_of(c("area", "hmax", "h5", "h1")))
   }
 
+  rm <- md_rm_corr_var(new_data %>% select(-c(id)))
 
-  km <- kmeans(new_data, ncat)$cluster
+  data_sel <- new_data %>% select(-rm)
 
-  cat <- data.frame(id = data_cr$id,
-                    cat = km,
-                    ir = new_data %>% dplyr::select(dplyr::starts_with("ir_")) %>%
-                      dplyr::mutate(ir = rowMeans(., na.rm = TRUE)) %>%
-                      dplyr::pull(ir))
-
-  # classement des types selon la bande IR spot
-
-  cat_ir <- cat %>% dplyr::group_by(cat) %>%
-    dplyr::summarise(ir = mean(ir, na.rm = TRUE)) %>%
-    dplyr::arrange(ir) %>%
-    dplyr::mutate(cat2 = paste0("T", row.names(.)))
+  ls_cats <- md_new_classif(data_sel %>% dplyr::select(-id), methode = methode,
+                            nb_cat = ncat)
 
 
-  temp <- terra::as.data.frame(cr$id, na.rm = FALSE)
+  data_end <- data_sel %>% mutate(cat = ls_cats$cats)
+  new_data$cat <- ls_cats$cats
 
-  val <- temp %>% dplyr::left_join(cat) %>%
-    dplyr::left_join(cat_ir, by = "cat")
+  # Rasterisation ----------------+
 
-  rcat <- cr$id
-  terra::values(rcat) <- val$cat2
+  val <- data %>% select(id) %>%
+    left_join(data_end %>% select(id, cat), by = "id")
 
-  terra::writeRaster(rcat, file.path(dest_dos, dest_file))
+  v <- as.data.frame(cr, na.rm = FALSE) %>% select(id) %>%
+    left_join(val, by = "id")
+
+  r <- cr$id
+  values(r) <- v$cat %>% as.factor()
+
+  if(plot){
+    library(ggplot2)
+
+    gg <- new_data %>%
+      select(any_of(c("cat", ls_cats$vars,
+                      names(new_data)[
+                        which(
+                          startsWith(names(new_data), "TPROD") &
+                            endsWith(names(new_data), "med")
+                        )
+                      ]))) %>%
+      mutate(cat = as.factor(cat)) %>%
+      tidyr::pivot_longer(-cat, names_to = "var", values_to = "val") %>%
+      ggplot(aes(x = cat, y = val)) +
+      geom_boxplot() +
+      facet_wrap(vars(var), scales = "free")
+  }else{gg <- NULL}
+
+  # écriture ---------------
+
+  terra::writeRaster(r, file.path(dest_dos, dest_file))
 
   util_msg(
     paste("Raster écrit sous ",
           file.path(dest_dos, dest_file)),
     notification = TRUE)
 
-  rcat
+  list(r, gg)
 }

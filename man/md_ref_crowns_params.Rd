@@ -10,33 +10,60 @@ md_ref_crowns_params(
     filter(!is.na(date) & date > as.Date("2015-01-01")),
   arbres_ttl = dbOiseau::bdloc_read_table("placettes_permanentes_arbres") \%>\%
     filter(is.na(type)),
+  champ_essence = "groupe",
+  champ_diam = "diam1",
   spec_date = 2018,
+  topo = TRUE,
+  dendro = TRUE,
+  spot = TRUE,
+  insol = TRUE,
+  mnh = TRUE,
   sentinel = FALSE,
+  copernicus = TRUE,
+  rsp_coper = FALSE,
   dest_dir = dc("dos_modeles_oiseau"),
-  dest_name = paste0("crown_", nom_ref, "_res1-spot", spec_date),
   user = basename(dirname(dc("dos_projet"))),
-  fake_proj = "tmp_ref_crowns"
+  test = FALSE,
+  add = NULL
 )
 }
 \arguments{
 \item{nom_ref}{nom du jeu de données}
 
-\item{placettes}{table des placettes permanentes, avec champ numdisp (identifiant réseau) et numplac (identifiant placette au sein du réseau)}
+\item{placettes}{table des placettes permanentes, avec champ id = identifiant de la placette}
 
-\item{arbres_ttl}{table des arbres avec champ de coordonnées polaire azimut (en grad) et dist (en m) et champs placette (numdisp et numpla)}
+\item{arbres_ttl}{table des arbres avec champ de coordonnées polaire azimut (en grad) et dist (en m) et champs placette (id)}
+
+\item{champ_essence}{de la table arbres}
 
 \item{spec_date}{date des images spot à utiliser}
 
-\item{dest_dir}{dossier d'écriture}
+\item{topo}{TRUE pour utiliser}
 
-\item{dest_name}{nom de fichier d'écriture}
+\item{dendro}{TRUE pour utiliser}
+
+\item{spot}{TRUE pour utiliser}
+
+\item{insol}{TRUE pour utiliser}
+
+\item{mnh}{TRUE pour utiliser}
+
+\item{sentinel}{TRUE pour utiliser les données sentinel}
+
+\item{copernicus}{TRUE pour utiliser les données copernicus}
+
+\item{dest_dir}{dossier d'écriture}
 
 \item{user}{nom utilisateur}
 
-\item{fake_proj}{nom du projet fictif de travail à créer}
+\item{test}{TRUE pour test sur 5 placettes}
+
+\item{add}{NULL ou nom_ref du même jeu de crowns auquel ajouter les données extraites}
+
+\item{champ_num}{(vecteur) des champs de la table arbre à conserver}
 }
 \value{
-rien, écrit le fichier .rds des données de calibration
+chemin du fichier d'écriture, écrit le fichier .rds des données de calibration
 }
 \description{
 Métriques des houppiers des arbres des placettes permanentes

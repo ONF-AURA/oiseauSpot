@@ -2,98 +2,182 @@
 
 #' Création modèle prédiction des essences des couronnes
 #'
-#' @param path_cal chemin des couronnes de calibration créés avec md_ref_crowns_params()
+#' @param nom_ref nom du jeu de calibration ou NULL pour choix interactif
+#' @param path_cal NULL ou chemin des couronnes de calibration créés avec md_ref_crowns_params()
 #' @param dest NULL
 #'
 #' @return
 #' @export
 #'
 
-md_model_ess_crowns <- function(path_cal, dest = NULL){
+md_model_ess_crowns <- function(
+    nom_ref = NULL,
+    path_cal = NULL,
+    dest = NULL
 
-  # path_cal = "/var/partage/oiseau/modeles/crown_ess_ain_res1-spot2018.rds"
+){
 
-  bdforet <- sf::read_sf("/var/partage/oiseau/ifn/bdforet/FORMATION_VEGETALE.shp")
+  if(is.null(path_cal)){
+    if(is.null(nom_ref)){
+
+      nms <- list.files(dc("dos_modeles_oiseau"), pattern = "crown_") %>%
+        stringr::str_remove_all("crown_") %>% tools::file_path_sans_ext()
+
+      nom_ref <- utils::select.list(nms, title = "Choisissez un jeu de couronnes de référence :")
+
+    }
+    path_cal = file.path(dc("dos_modeles_oiseau"), paste0("crown_", nom_ref, ".rds"))
+  }
+
+
 
   cal0 <- readRDS(path_cal) %>% dplyr::mutate(id = rownames(.))
 
+  # suppression des dominés
 
-  bdloc <- bdforet %>% sf::st_crop(cal0 %>% st_bbox() %>% sf::st_as_sfc()) %>% sf::st_buffer(50)
+  domine <- cal0 %>% filter(hmoy10>mnh_h_q90)
 
-  unique(bdloc$ESSENCE) %>% sort()
+  cal0 <- cal0 %>% filter(hmoy10 < mnh_h_q90)
 
-  bdloc <- bdloc %>% dplyr::mutate(bdforet = case_when(
-    startsWith(ESSENCE, "Pin") ~ "pin",
-    ESSENCE %in% c("Conifères", "Douglas", "Sapin, épicéa") ~ "résineux",
-    ESSENCE == "Mixte" ~"mixte",
-    ESSENCE == "NC" ~ "nc",
-    TRUE ~ "feuillu"
-  ))
+  # bdforet IGN
 
-  comp <- sf::st_intersection(bdloc %>% dplyr::select(ess),
-                         cal0 %>% sf::st_centroid() %>% dplyr::select(id), tolerance = 0)
+  path_bdforet_loc <- file.path(dirname(path_cal), paste0("bdforet_", nom_ref, ".rds"))
 
-  comp <- comp %>% filter(!duplicated(id))
+  if(file.exists(path_bdforet_loc)){
+
+    comp <- readRDS(path_bdforet_loc)
+
+  }else{
+
+    bdforet <- sf::read_sf("/var/partage/oiseau/ifn/bdforet/FORMATION_VEGETALE.shp")
+
+
+    bdloc <- bdforet %>% sf::st_crop(cal0 %>% st_bbox() %>% sf::st_as_sfc()) %>% sf::st_buffer(50)
+
+
+    bdloc <- bdloc %>% dplyr::mutate(bdforet = case_when(
+      startsWith(ESSENCE, "Pin") ~ "pin",
+      ESSENCE %in% c("Conifères", "Douglas", "Sapin, épicéa") ~ "résineux",
+      ESSENCE == "Mixte" ~"mixte",
+      ESSENCE == "NC" ~ "nc",
+      TRUE ~ "feuillu"
+    ))
+
+    comp <- sf::st_intersection(bdloc %>% dplyr::select(bdforet),
+                                cal0 %>% sf::st_centroid() %>% dplyr::select(id), tolerance = 0)
+
+    comp <- comp %>% filter(!duplicated(id))
+
+    saveRDS(comp, path_bdforet_loc)
+  }
 
   cal0 <- cal0 %>% left_join(comp %>% as.data.frame() %>% select(-geometry))
 
   cal0 <- cal0 %>% as.data.frame() %>%
     select(-c(id, geometry)) %>%
-    mutate(ess = as.factor(ess),
+    mutate(essence = as.factor(essence),
            bdforet = as.factor(bdforet))
 
-  cal <- cal0[, c((which(names(cal0) == "topo_alti_moy")):(length(names(cal0))))]
-  cal <- cal %>% select(-c(n, g.y)) %>%
-    relocate(ess)
+  cal <- cal0 %>% select(-any_of(c("id", "X", "Y", "area", "n", "g", "hmoy10"))) %>%
+    relocate(essence)
 
 
   (na_x <- purrr::map_int(names(cal), ~sum(is.na(cal[[.x]]))) / nrow(cal))
   (cl_x <- purrr::map_chr(names(cal), ~paste(class(cal[[.x]]), collapse = "+")))
 
+  co <- names(cal)
+
+  exclu <- c("mnh_aspect", "flowdir", "mnh_TPI", "spot_.*_q", "moy", "topo_.*q", "topo_.*sd", ".*_x_.*q", ".*_x_.*sd", "TRIrmsd", "TRIriley")
+
+  coout <- purrr::map(exclu, ~ co[which(stringr::str_detect(co, .x))]) %>% unlist() %>% unique()
+  co[which(! co %in% coout)]
+
+
   cal_ <- cal %>% na.omit() %>%
-    select(-ends_with('moy')) %>%
-    select(-(starts_with('topo_') & ! ends_with("med")))
-  # select(-area)
-  # select(c("ess", ends_with("med")))
-
-  cal_gr <- cal_ %>% mutate(
-    ess = as.character(ess),
-    ess = ifelse(! ess %in% c("S.P", "EPC", "HET"), "DIV", ess),
-    ess = as.factor(ess))
-
-  cal_div <- cal_gr %>% mutate(div = cal_$ess) %>%
-    filter(ess == "DIV") %>%
-    mutate(ess = as.factor(as.character(div))) %>%
-    select(-div)
-
-  ls_mod <- purrr::map(list(cal_gr, cal_div), function(cal_x){
-
-    sel <- varSelRF::varSelRF(xdata = cal_x %>% select(-ess), Class = cal_x$ess,
-                              whole.range = TRUE)
-    sv <- sel$selec.history
-    sv$num <- 1:nrow(sv)
-    plot(sv %>% select(Number.Variables, OOB), type = "n")
-    text(sv$Number.Variables, sv$OOB, sv$num, offset = 1, col = "red")
-
-    message(
-      paste(sv$Number.Variables, paste0(round(sv$OOB*100), "%"), sep = ":", collapse = " ")
-    )
-
-    choix <- utils::select.list(sv$Number.Variables, title = "Sélectionner le nombre de variables à utiliser:")
+    select(-any_of(coout)) %>%
+    as.data.frame() %>%
+    select(-any_of(c("geometry", "azimut", "dist", "diam", "cycle", "G", "ess"))) %>%
+    mutate(bdforet = as.factor(bdforet))
 
 
-    (vars <- sv$Vars.in.Forest[which(sv$Number.Variables == choix)] %>% as.character() %>% strsplit(" \\+ ") %>% unlist)
+  ans_spot <- names(cal_)[which(startsWith(names(cal_), "spot"))] %>%
+    str_remove("spot_") %>% str_split("_", simplify = TRUE) %>%
+    as.numeric() %>% na.omit() %>% unique()
 
-    model <- randomForest::randomForest(cal_x$ess ~ ., data = cal_x %>% select(vars),
-                                        importance = TRUE)
-    model
+  nrm <- names(cal_)[grep(paste0("^((?!spot).)*_20.._"), names(cal_), perl = TRUE)]
+
+  for(a in ans_spot){
+  nrm <- nrm[which(!str_detect(nrm, as.character(a)))]
+}
+
+  # select
+
+  message("suppression des variables avec années absentes de Spot:\n", paste(nrm, collapse = ", "))
+
+  cal_ <- cal_ %>% select(-nrm)
+
+  vrm <- md_rm_corr_var(cal_)
+
+  message("suppression des variables hautement corrélées:\n", paste(vrm, collapse = ", "))
+
+  cal_ <- cal_ %>% select(-vrm)
+
+  cal_ <- cal_ %>% filter(mnh_h_q90 > dc("lim_h_perche"))
+
+  cal_$bdforet <- NULL
+
+#
+
+  ess_res <- c("S.P", "EPC", "PIN", "A.R")
+
+  cal_fam <- cal_ %>% mutate(
+    essence = as.character(essence),
+    essence = ifelse(essence %in% ess_res, "RES", "FEU"),
+    essence = as.factor(essence))
+
+  cal_res <- cal_ %>%
+    filter(essence %in% ess_res) %>%
+    mutate(essence = as.factor(essence))
+
+  cal_het <- cal_ %>%
+    filter(! essence %in% ess_res) %>%
+    mutate(
+      essence = as.character(essence),
+      essence = ifelse(essence == "HET", "HET", "DIV"),
+      essence = as.factor(essence))
+
+  cal_div <- cal_ %>%
+    filter(! essence %in% c("HET", ess_res)) %>%
+    mutate(
+      essence = as.factor(essence))
+
+  # tests------------------------------------------
+
+  cc <- cal_fam %>% select(- any_of("bdforet")) %>%
+    mutate(essence = (essence == "RES"))
+
+  # modelisation ----------------------------------
+
+  ls_mod <- purrr::map(list(cal_fam, cal_res, cal_het, cal_div), function(xxx){
+
+    message(crayon::green(paste(unique(xxx$essence), collapse = "+")))
+
+
+    xxx$essence <- as.character(xxx$essence) %>% as.factor()  # suppr facteurs vides
+
+
+    tab <- xxx
+    col_y <- 'essence'
+    md_new_model_rf(tab = xxx, col_y = "essence", pvalid = .2)
+
+
   })
 
+  names(ls_mod) <- c("famille", "res", "het", "af")
+
   path_rf <- file.path(dirname(path_cal), stringr::str_replace(path_cal %>% basename(), "crown_", "rf_"))
-  saveRDS(ls_mod[[1]],path_rf)
+  saveRDS(ls_mod, path_rf)
 
 
-  path_rf_div <- stringr::str_replace(path_rf, "rf_ess_", "rf_essDIV_")
-  saveRDS(ls_mod[[2]], path_rf_div)
 
 }

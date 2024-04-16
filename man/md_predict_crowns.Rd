@@ -6,10 +6,11 @@
 \usage{
 md_predict_crowns(
   mn,
-  dir,
+  dir = dc("dos_modeles_oiseau"),
   res = NULL,
   spot_an = NULL,
-  dest = file.path(dc("dos_modeles"))
+  rsp_coper = FALSE,
+  dest = dc("path_essences")
 )
 }
 \arguments{
@@ -20,6 +21,10 @@ md_predict_crowns(
 \item{res}{resolution des rasters d'extraction (defaut tiré du nom du fichier ...-res1-... = 1m)}
 
 \item{spot_an}{date de l'image spot uitilisée (defaut tiré du nom du fichier ...-spot2018-... = 2018)}
+
+\item{rsp_coper}{TRUE pour rééchantilloner les rasters Coprenicus}
+
+\item{dest}{}
 }
 \value{
 spatraster

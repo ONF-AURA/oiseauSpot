@@ -11,9 +11,15 @@ md_predicteurs(
   insol = TRUE,
   mnh = TRUE,
   sentinel = TRUE,
+  copernicus = TRUE,
   suppress_rasters_with_na = 100,
   res = 10,
-  spot_date = "last"
+  spot_date = "last",
+  vars_topo = c("slope", "aspect", "TPI", "TRI", "roughness", "flowdir"),
+  vars_mnh = c("slope", "aspect", "TPI", "TRI", "TRIriley", "TRIrmsd", "roughness",
+    "flowdir"),
+  indices = NULL,
+  rsp_coper = FALSE
 )
 }
 \arguments{

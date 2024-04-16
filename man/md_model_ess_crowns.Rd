@@ -4,10 +4,12 @@
 \alias{md_model_ess_crowns}
 \title{Création modèle prédiction des essences des couronnes}
 \usage{
-md_model_ess_crowns(path_cal, dest = NULL)
+md_model_ess_crowns(nom_ref = NULL, path_cal = NULL, dest = NULL)
 }
 \arguments{
-\item{path_cal}{chemin des couronnes de calibration créés avec md_ref_crowns_params()}
+\item{nom_ref}{nom du jeu de calibration ou NULL pour choix interactif}
+
+\item{path_cal}{NULL ou chemin des couronnes de calibration créés avec md_ref_crowns_params()}
 
 \item{dest}{NULL}
 }

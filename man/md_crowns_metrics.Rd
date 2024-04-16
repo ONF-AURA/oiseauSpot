@@ -16,15 +16,22 @@ md_crowns_metrics(
   best_day = data_conf("spot_best_day"),
   dest_dir = dc("dos_modeles"),
   spot_date = "last",
-  sentinel = TRUE
+  topo = TRUE,
+  dendro = TRUE,
+  spot = TRUE,
+  insol = TRUE,
+  mnh = TRUE,
+  sentinel = TRUE,
+  copernicus = TRUE,
+  rsp_coper = FALSE
 )
 }
 \arguments{
 \item{date_mnh}{date du MNH à utiliser}
 
-\item{crowns}{raster des couronnes issu de data_crowns}
-
 \item{mnh}{}
+
+\item{crowns}{raster des couronnes issu de data_crowns}
 }
 \value{
 spatRaster

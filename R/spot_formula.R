@@ -6,7 +6,7 @@
 #' @return texte de la formule
 #' @export
 #'
-spot_formula <- function(indice = c("ndvi", "gli", "logr", "bai", "savi"), list = FALSE){
+spot_formula <- function(indice = c("ndvi", "gli", "logr", "bai", "savi", "lai"), list = FALSE){
   ndvi <- "(spot$ir - spot$red) / (spot$ir + spot$red)"
   vigreen <- "(spot$green - spot$red) / (spot$green + spot$red)"
   ndvigreen <- "(spot$green - spot$ir) / (spot$green + spot$ir)"
@@ -17,7 +17,9 @@ spot_formula <- function(indice = c("ndvi", "gli", "logr", "bai", "savi"), list 
   bai <- "1/((0.1 - spot$red)^2 + (0.06 - spot$ir)^2)"
   savi <- "(spot$ir - spot$red) / (spot$ir + spot$red + 0.5) + 1.5"
 
-  if(list) return(c("ndvi", "ndvigreen", "vigreen", "vari", "gli",  "logr", "bai", "savi"))
+  lai <- "10^(3.4838 * (spot$ir - spot$red) / (spot$ir + spot$red) - 0.148)"
+
+  if(list) return(c("lai", "ndvi", "ndvigreen", "vigreen", "vari", "gli",  "logr", "bai", "savi"))
   get(indice)
 }
 

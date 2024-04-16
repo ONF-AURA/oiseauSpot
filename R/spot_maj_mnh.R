@@ -64,12 +64,12 @@ spot_maj_mnh <- function(ext = data_conf("shp"),
 
     ras_dif <- spot_differences(date1)
 
-    plot(ras_dif, main=paste("diff", date1, date0))
+    # plot(ras_dif, main=paste("diff", date1, date0))
 
-    ras_dif[ras_dif < seuil_diff_spot] <- 0
-    ras_dif[ras_dif >= seuil_diff_spot] <- 1
+    ras_dif[(-ras_dif) < seuil_diff_spot] <- 0
+    ras_dif[(-ras_dif) >= seuil_diff_spot] <- 1
 
-    plot(ras_dif, main=paste("deads", date1, date0))
+    # plot(ras_dif, main=paste("deads", date1, date0))
 
     if(n == 1){
       mnh0 <- uRast("mnh", date_mnh, "-spot")
@@ -103,7 +103,7 @@ spot_maj_mnh <- function(ext = data_conf("shp"),
                        ~ maj(dates, .x, date_mnh))
 
 
-  terra::rast(dest_deads) %>% terra::plot(col=c("red", "gray"))
+  # terra::rast(dest_deads) %>% terra::plot(col=c("red", "gray"))
 
 
   message(crayon::green("MNH mis à jour"))

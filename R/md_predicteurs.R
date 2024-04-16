@@ -13,9 +13,13 @@
 #'
 #'
 md_predicteurs <- function(topo = TRUE, dendro = TRUE, spot = TRUE, insol = TRUE,
-                             mnh = TRUE, sentinel = TRUE, suppress_rasters_with_na = 100, res = 10,
-                             spot_date = "last"
-                    ){
+                           mnh = TRUE, sentinel = TRUE, copernicus = TRUE,
+                           suppress_rasters_with_na = 100, res = 10,
+                           spot_date = "last",
+                           vars_topo = c( "slope", "aspect", "TPI", "TRI", "roughness", "flowdir"),
+                           vars_mnh = c( "slope", "aspect", "TPI", "TRI", "TRIriley", "TRIrmsd", "roughness", "flowdir"),
+                           indices = NULL, rsp_coper = FALSE
+){
 
   mnt <- uRast("mnt", "last") %>% aggregate(res, "mean", na.rm = TRUE)
   names(mnt) <- "topo_alti"
@@ -24,99 +28,165 @@ md_predicteurs <- function(topo = TRUE, dendro = TRUE, spot = TRUE, insol = TRUE
 
   if(topo){
 
-    cat("1/5: topographie\n")
+    message("topographie")
 
-    terr <- terrain(mnt, c( "slope", "aspect", "TPI", "TRI", "TRIriley", "TRIrmsd", "roughness", "flowdir"))
+    if("topo.tif" %in% list.files()){
 
-    names(terr) <- paste0("topo_", names(terr))
+      message("topo.tif du dossier user  utilisé.")
+      terr <- rast("topo.tif") %>% project(mnt)
+    }else{
+
+      vars_topo[which(stringr::str_detect(vars_topo, "aspect"))] <- "aspect"
+
+      vars_topo <- vars_topo[which(vars_topo != "alti")]
+
+
+      terr <- terra::terrain(mnt, vars_topo %>% unique)
+
+      names(terr) <- paste0("topo_", names(terr))
+
+      if("aspect" %in% vars_topo){
+        terr$topo_aspectNS <-  cos(terr$topo_aspect / 400 * 2*pi)
+        terr$topo_aspectEW <-  sin(terr$topo_aspect / 400 * 2*pi)
+        terr$topo_aspect <- NULL
+      }
+    }
+
     pile <- c(pile, terr)
   }
 
   if(dendro){
 
-    cat("2/5: dendrométrie\n")
+    message("dendrométrie")
 
     tryCatch({
-      dendro <- uRast("dendro") %>% resample(mnt)
+      dendro <- uRast("dendro") %>% terra::resample(mnt)
       names(dendro) <- paste0("dend_", names(dendro))
 
       pile <- c(pile, dendro)
-    }, error = function(e){message("Pas de rasters de prédictions dendrométriques.")}
+    }, error = function(e){warning("Pas de rasters de prédictions dendrométriques.")}
     )
   }
 
   if(spot){
 
-    cat("3/5: spot\n")
+    message("spot")
 
     tryCatch({
-      spot <- uRast("spot", spot_date)
+      spots <- uRast("spot", spot_date)
 
-      indices <- spot_formula(list = TRUE)
+      if(is.null(indices))
+        indices <- spot_formula(list = TRUE)
 
-      ind <- purrr::map(indices, ~eval(parse(text = spot_formula(.x))))
+      for(date in time(spots) %>% unique() %>% as.character()){
 
-      indc <- do.call(c, ind)
-      names(indc) <- paste0("spot_", indices)
+        spot <- spots[[time(spots) == date]]
 
-      pile <- c(pile, indc %>% aggregate(res, "mean", na.rm = TRUE))
+        ind <- purrr::map(indices, ~eval(parse(text = spot_formula(.x))))
 
-    }, error = function(e){message("Pas de rasters Spot.")}
+        indc <- do.call(c, ind)
+        names(indc) <- paste0("spot_", stringr::str_sub(date, 1, 4), "_", indices)
+
+        pile <- c(pile, indc %>% aggregate(res, "mean", na.rm = TRUE))
+
+
+      }
+
+
+    }, error = function(e){warning("Pas de rasters Spot.")}
     )
   }
 
   if(insol){
 
-    cat("4/5: insolation\n")
+    message("insolation")
 
     tryCatch({
       inso <- uRast("insolation", "last") %>% resample(mnt)
 
       pile <- c(pile, inso)
-    }, error = function(e){message("Pas de rasters d'insolation.")}
+    }, error = function(e){warning("Pas de rasters d'insolation.")}
     )
   }
 
   if(mnh){
 
-    cat("5/5: mnh\n")
+    message("mnh")
 
     tryCatch({
+
+      vars_mnh <- vars_mnh[which(vars_mnh != "h")]
 
       mnh <- uRast("mnh", "last") %>% aggregate(res, "mean", na.rm = TRUE)
       names(mnh) <- "mnh_h"
 
-      terr <- terrain(mnh, c( "slope", "aspect", "TPI", "TRI", "TRIriley", "TRIrmsd", "roughness", "flowdir"))
+      mnh0 <- uRast("mnh", "first") %>% aggregate(res, "mean", na.rm = TRUE)
+      names(mnh0) <- "mnh_h0"
+
+      terr <- terrain(mnh, vars_mnh)
 
       names(terr) <- paste0("mnh_", names(terr))
-      pile <- c(pile, mnh, terr)
+      pile <- c(pile, mnh, terr, mnh0)
 
-    }, error = function(e){message("Pas de rasters issus du MNH")}
+    }, error = function(e){warning("Pas de rasters issus du MNH")}
     )
   }
+
+  if(sentinel){
+
+    message("sentinel")
+
+    tryCatch({
+
+      ansp <- util_get_date(spot_date, "spot") %>% as.Date() %>% format("%Y")
+
+      sen <- data_sentinel(tmin = paste0(ansp, "-01-01"), tmax = paste0(ansp, "-12-31"))
+      sen <- uRast("sentinel")
+      sen1 <- sen %>% terra::resample(pile[[1]])
+
+      names(sen1) <- c("id", paste(names(sen1), terra::time(sen1), sep = "_x_"))
+      pile <- c(pile, sen1)
+
+    }, error = function(e){warning("Pas de rasters Sentinel")}
+    )
+  }
+
+  if(copernicus){
+
+    message("copernicus")
+
+    tryCatch({
+      cop <- data_copernicus(resample = rsp_coper) %>% terra::resample(pile[[1]])
+
+      names(cop) <- c(paste(names(cop), terra::time(cop), sep = "_x_"))
+      pile <- c(pile, cop)
+    }, error = function(e){warning("Pas de rasters Copernicus")}
+    )
+  }
+
 
   pilec <- pile %>% terra::mask(dc("shp") %>% sf::st_buffer(dc("buffer")))
 
   if(suppress_rasters_with_na < 100){
 
-    cat("suppression des variables comportant trop de données manquantes\n")
+    message("suppression des variables comportant trop de données manquantes")
 
-  e <- extract(pilec, dc("shp") %>% dplyr::summarise(geometry = sf::st_union(geometry))) %>%
-    dplyr::select( - dplyr::any_of(c("Id", "ID", "id")))
+    e <- extract(pilec, dc("shp") %>% dplyr::summarise(geometry = sf::st_union(geometry))) %>%
+      dplyr::select( - dplyr::any_of(c("Id", "ID", "id")))
 
-  e <- e[purrr::map_lgl(e, ~length(unique(.x)) > 1)]
+    e <- e[purrr::map_lgl(e, ~length(unique(.x)) > 1)]
 
-  nas <- purrr::map_dbl(e, ~ sum(is.na(.x)) / nrow(e))
+    nas <- purrr::map_dbl(e, ~ sum(is.na(.x)) / nrow(e))
 
-  layer2rm <- names(e)[which(nas > (suppress_rasters_with_na /100)) & ! startsWith(names(e), "mnh")]
+    layer2rm <- names(e)[which(nas > (suppress_rasters_with_na /100)) & ! startsWith(names(e), "mnh")]
 
-  if(length(layer2rm) > 0){
-    message("le ou les rasters suivant(s) sont exclus par le paramètre de filtre fixant à ",
-            suppress_rasters_with_na, "% max la proportion de données manquantes:\n\t",
-            crayon::red(paste(layer2rm, collapse = "\t")))
+    if(length(layer2rm) > 0){
+      message("le ou les rasters suivant(s) sont exclus par le paramètre de filtre fixant à ",
+              suppress_rasters_with_na, "% max la proportion de données manquantes:\n\t",
+              crayon::red(paste(layer2rm, collapse = "\t")))
 
-    pilec <- pilec[[names(e)[!names(e) %in% layer2rm]]]
-  }
+      pilec <- pilec[[names(e)[!names(e) %in% layer2rm]]]
+    }
   }
 
   return(pilec)
