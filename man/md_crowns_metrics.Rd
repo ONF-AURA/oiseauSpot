@@ -23,7 +23,8 @@ md_crowns_metrics(
   mnh = TRUE,
   sentinel = TRUE,
   copernicus = TRUE,
-  rsp_coper = FALSE
+  rsp_coper = FALSE,
+  force = FALSE
 )
 }
 \arguments{

@@ -49,7 +49,7 @@ md_large_echantillon <- function(rs, ans = NULL, nspl = 10, larg_grappe = 1000,
       data_spot(ans)
 
 
-      pr <- md_predicteurs(res = 1, sentinel = FALSE, copernicus = FALSE, insol = FALSE, dendro = FALSE, spot_date = ans, rsp_coper = rsp_coper)
+      pr <- data_predicteurs(res = 1, sentinel = FALSE, copernicus = FALSE, insol = FALSE, dendro = FALSE, spot_date = ans, rsp_coper = rsp_coper)
 
       writeRaster(pr, file.path(tmp_dir, paste0("pred", i, ".tif")))
     })

@@ -12,7 +12,7 @@
 #' @export
 #'
 #'
-md_predicteurs <- function(topo = TRUE, dendro = TRUE, spot = TRUE, insol = TRUE,
+data_predicteurs <- function(topo = TRUE, dendro = TRUE, spot = TRUE, insol = TRUE,
                            mnh = TRUE, sentinel = TRUE, copernicus = TRUE,
                            suppress_rasters_with_na = 100, res = 10,
                            spot_date = "last",

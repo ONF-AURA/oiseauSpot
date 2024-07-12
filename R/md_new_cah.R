@@ -39,7 +39,7 @@ md_new_classif <- function(data, methode = "kmeans", nb_cat = NULL){
 
   par(mfrow = c(5, 4), mar = c(2,2,1,1))
 
-  ncat <- map(3:22, function(n){
+  ncat <- map(3:min(nrow(data), 22), function(n){
     ct <- table(cutree(data.hclust,n))
     plot(ct)
     text(ct, adj = 0, srt = 90, labels = as.character(ct), col = "red")

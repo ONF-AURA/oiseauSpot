@@ -62,7 +62,7 @@ md_spatialise <- function(
 
   # prédicteurs --------------------------------------------
 
-  pile <- md_predicteurs(topo = use_topo, dendro = use_dendro, spot = use_spot, insol = use_insol, couvert = use_couvert,
+  pile <- data_predicteurs(topo = use_topo, dendro = use_dendro, spot = use_spot, insol = use_insol, couvert = use_couvert,
                            suppress_rasters_with_na,
                          rsp_coper = rsp_coper)
 

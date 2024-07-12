@@ -22,6 +22,8 @@ md_predict_crowns <- function(mn, dir = dc("dos_modeles_oiseau"),
   # dir <- "/var/user/sdumas/oiseauX"
 
   path <- file.path(dir, paste0(mn, ".rds"))
+
+  path_pile <- file.path(dc("dos_projet"), "pile_essences.tif")
   # "/var/user/sdumas/oiseauX/rf_ESS-res1-spot2018.rds"
 
 
@@ -58,9 +60,10 @@ md_predict_crowns <- function(mn, dir = dc("dos_modeles_oiseau"),
     }
   }
 
-  # ---------------
+  # Construction pile prédicteurs ----------------------------------------------------
 
   crowns <- uRast("crowns","last")
+
   dtc <- data_table_copernicus()
 
 
@@ -81,7 +84,7 @@ md_predict_crowns <- function(mn, dir = dc("dos_modeles_oiseau"),
       if(vv[1] %in% dtc$name){
         # Copernicus
         return(data.frame(origine = "copernicus", derive = vv[1], fun = vv[5],
-             date = as.character(vv[2]), param = "", vars = v, stringsAsFactors = FALSE))
+                          date = as.character(vv[2]), param = "", vars = v, stringsAsFactors = FALSE))
       }
       if(vv[1] == "spot"){
         # spot
@@ -153,128 +156,159 @@ md_predict_crowns <- function(mn, dir = dc("dos_modeles_oiseau"),
       filter(!duplicated(.))
   }
 
+
   # Construction des rasters prédicteurs -------------------------------------------
 
-  # Copernicus
 
-  # vars_start <- stringr::str_split(tav_tot$origine, "\\.", simplify = TRUE)[,1]
-  # w_coper <- which(vars_start %in% unique(dtc$name))
 
-  # if(length(w_coper) > 0){
+    # Copernicus
+
+    # vars_start <- stringr::str_split(tav_tot$origine, "\\.", simplify = TRUE)[,1]
+    # w_coper <- which(vars_start %in% unique(dtc$name))
+
+    # if(length(w_coper) > 0){
     if("copernicus" %in% tav_tot$origine){
 
-    # tav_cop <- tav_tot %>% slice(w_coper)
-    # df_cop <- dtc %>% filter(id %in% stringr::str_replace(tav_cop$origine, "\\.", " "))
+      # tav_cop <- tav_tot %>% slice(w_coper)
+      # df_cop <- dtc %>% filter(id %in% stringr::str_replace(tav_cop$origine, "\\.", " "))
 
       id_tav <- tav_tot %>% filter(origine == "copernicus") %>%
         mutate(iid =paste(derive, date)) %>% pull(iid)
 
       df_cop <- dtc %>% filter(id %in% id_tav)
 
-    co <- data_copernicus(resample = rsp_coper, df_cop = df_cop)
+      co <- data_copernicus(resample = rsp_coper, df_cop = df_cop)
 
-    co <- co[[stringr::str_replace_all(id_tav, " ", "_")]]
+      co <- co[[stringr::str_replace_all(id_tav, " ", "_")]]
 
-    nms <- tav_tot %>% filter(origine == "copernicus") %>% pull(vars) %>% sort()
-    names(co) <- nms[order(names(co))]
-  }
-
-  # autres
-
-  tav <- tav_tot %>% filter(origine != "copernicus")
-
-  ls <- purrr::map(1:nrow(tav), function(i){
-
-    print(i)
-
-    ta <- tav[i,] %>% as.character()
-    names(ta) <- names(tav)
-
-    message("construction du raster prédictif ", toupper(paste(ta[1:2], collapse = " ")))
-
-    if(ta["origine"] == "bdforet"){
-      return(data_bdforet(force=F))
+      nms <- tav_tot %>% filter(origine == "copernicus") %>% pull(vars) %>% sort()
+      names(co) <- nms[order(names(co))]
     }
 
+    # autres
 
+    tav <- tav_tot %>% filter(origine != "copernicus")
 
-    assign(ta["origine"],
-           uRast(ta["origine"], date = ta["date"])) %>% terra::aggregate(res)
+    # Extraction des rasters ---------
 
+    if(file.exists(path_pile)){
 
-    if(ta["origine"] == "spot"){
+      pile <- rast(path_pile)
 
-      if(ta["fun"] == "quantile"){
-        fun <- function(x){quantile(x, ta["param"])}
-      }else{
-        fun <- get(ta["fun"] %>% as.character())
-      }
-      print(spot_formula(ta["derive"]))
-      return(eval(parse(text = spot_formula(ta["derive"]))))
-
-    }else if(ta["origine"] %in% c("mnt", "mnh")){
-
-      if(ta["derive"] %in% c("")){
-        return(get(ta["origine"]))
-      }else{
-        return(terra::terrain(get(ta["origine"]), ta["derive"]))
-      }
-    }else if(ta["origine"] %in% c("dendro")){
-
-      return(get(ta["origine"])[[ta["derive"]]])
     }else{
 
-      return(get(ta["origine"]))
-    }
-  })
 
-  names(ls) <- tav$vars
+    ls <- purrr::map(1:nrow(tav), function(i){
 
-  pile <- do.call(c, ls) %>% terra::rast()
+      print(i)
 
-  if(exists("co")) pile <- c(pile, co %>% project(pile))
+      ta <- tav[i,] %>% as.character()
+      names(ta) <- names(tav)
 
+      message("construction du raster prédictif ", toupper(paste(ta[1:2], collapse = " ")))
 
-  pile$cr <- crowns
-
-  # data <- terra::as.data.frame(pile, na.rm = TRUE) %>%
-  #   group_by(cr) %>%
-  #   summarise(
-  #     across(ends_with("med"), median, na.rm = TRUE),
-  #     across(ends_with("q10"), quantile, probs = .1, na.rm = TRUE),
-  #     across(ends_with("q90"), quantile, probs = .9, na.rm = TRUE),
-  #     across(ends_with("moy"), mean, probs = .1, na.rm = TRUE),
-  #     across(ends_with("sd"), sd, na.rm = TRUE)
-  #   )
+      if(ta["origine"] == "bdforet"){
+        return(data_bdforet(force=F))
+      }
 
 
 
-  crv <- crowns %>% terra::as.polygons() %>% st_as_sf()
-  sf::st_crs(crv) <- 2154
-  #
-  # ls_e <- purrr::map(1:nrow(tav), function(.x){
-  #
-  #   message("Extraction ", toupper(paste(tav[.x,], collapse = " ")))
-  #   rast <- ls[[.x]]
-  #   terra::crs(rast) <- "epsg:2154"
-  #   exactextractr::exact_extract(rast, crv,
-  #                                fun = tav[.x, 3],
-  #                                quantiles = ifelse(tav[.x,5] == "", 0, as.numeric(tav[.x,5]) / 100))
-  # })
-  #
-  # names(ls_e) <- vars
+      assign(ta["origine"],
+             uRast(ta["origine"], date = ta["date"])) %>% terra::aggregate(res)
 
-  # x <- do.call(cbind, ls_e) %>% as.data.frame()
 
-  data <- util_extract(pile, "cr")
+      if(ta["origine"] == "spot"){
 
+        if(ta["fun"] == "quantile"){
+          fun <- function(x){quantile(x, ta["param"])}
+        }else{
+          fun <- get(ta["fun"] %>% as.character())
+        }
+        print(spot_formula(ta["derive"]))
+        return(eval(parse(text = spot_formula(ta["derive"]))))
+
+      }else if(ta["origine"] %in% c("mnt", "mnh")){
+
+        if(ta["derive"] %in% c("")){
+          return(get(ta["origine"]))
+        }else{
+          return(terra::terrain(get(ta["origine"]), ta["derive"]))
+        }
+      }else if(ta["origine"] %in% c("dendro")){
+
+        return(get(ta["origine"])[[ta["derive"]]])
+      }else{
+
+        return(get(ta["origine"]))
+      }
+    })
+
+    names(ls) <- tav$vars
+
+    pile <- do.call(c, ls) %>% terra::rast()
+
+    if(exists("co")) pile <- c(pile, co %>% project(pile))
+
+
+    pile$cr <- crowns
+
+    # data <- terra::as.data.frame(pile, na.rm = TRUE) %>%
+    #   group_by(cr) %>%
+    #   summarise(
+    #     across(ends_with("med"), median, na.rm = TRUE),
+    #     across(ends_with("q10"), quantile, probs = .1, na.rm = TRUE),
+    #     across(ends_with("q90"), quantile, probs = .9, na.rm = TRUE),
+    #     across(ends_with("moy"), mean, probs = .1, na.rm = TRUE),
+    #     across(ends_with("sd"), sd, na.rm = TRUE)
+    #   )
+
+
+
+    crv <- crowns %>% terra::as.polygons() %>% st_as_sf()
+    sf::st_crs(crv) <- 2154
+    #
+    # ls_e <- purrr::map(1:nrow(tav), function(.x){
+    #
+    #   message("Extraction ", toupper(paste(tav[.x,], collapse = " ")))
+    #   rast <- ls[[.x]]
+    #   terra::crs(rast) <- "epsg:2154"
+    #   exactextractr::exact_extract(rast, crv,
+    #                                fun = tav[.x, 3],
+    #                                quantiles = ifelse(tav[.x,5] == "", 0, as.numeric(tav[.x,5]) / 100))
+    # })
+    #
+    # names(ls_e) <- vars
+
+    # x <- do.call(cbind, ls_e) %>% as.data.frame()
+
+    writeRaster(pile, path_pile)
+  }
+
+  path_backup <- file.path(dc("dos_user"), "data.rds")
+
+  if(file.exists(path_backup)){
+    data <- readRDS(path_backup)
+  }else{
+    data <- util_extract(pile, "cr")
+    saveRDS(data, path_backup)
+  }
   # dh
 
   if("mnh_h0_q90" %in% tav$vars){
-   data$mnh_dh <- data$mnh_h_q90 - data$mnh_h0_q90
+    data$mnh_dh <- data$mnh_h_q90 - data$mnh_h0_q90
   }
 
+
+  tmp <- file.path(dc("dos_user"), "rf_ess")
+  dir.create(tmp)
+
   lsr <- purrr::map(1:length(mx), function(i_model){
+
+
+    tmpi <-  file.path(tmp, paste0(i_model, ".tif"))
+
+
+    # if(file.exists(tmpi)){return(NULL)}
 
     message("prédiction Random Forest...")
     m <- mx[[i_model]]
@@ -293,14 +327,20 @@ md_predict_crowns <- function(mn, dir = dc("dos_modeles_oiseau"),
 
     terra::values(templ) <- x$pred
 
-    return(templ)
+    templ <- util_rename_spatrast(templ, names(mx)[i_model])
+    writeRaster(templ, tmpi, overwrite = TRUE)
+    write.csv(cats(templ)[[1]], str_replace_all(tmpi, ".tif", ".csv"), row.names = FALSE)
+    gc()
   })
 
 
-  r <- rast(lsr)
+  r <- rast(list.files(tmp, full.names = TRUE, pattern = ".tif"))
 
   names(r) <- names(mx)
 
+  lvs <- map(list.files(tmp, full.names = TRUE, pattern = ".csv"), ~ read.csv(.x))
+
+  levels(r) <- lvs
 
   df <- as.data.frame(r, na.rm = FALSE) %>%
     mutate_all(as.character) %>%
@@ -344,5 +384,7 @@ md_predict_crowns <- function(mn, dir = dc("dos_modeles_oiseau"),
 
   message("raster écrit sous ", dest)
 
+
+  unlink(tmp, recursive = TRUE)
   ess
 }

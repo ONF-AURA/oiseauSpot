@@ -22,7 +22,7 @@ md_downscale <- function(y10m10, an = "last", rf = NULL){
     # --
 
     x0 <- suppressWarnings(suppressMessages(
-      md_predicteurs(res = 1, sentinel = FALSE, copernicus = FALSE, spot_date = an)
+      data_predicteurs(res = 1, sentinel = FALSE, copernicus = FALSE, spot_date = an)
     ))
 
     x <- x0[[md_metrics_used(names(x0))]]
@@ -57,7 +57,7 @@ md_downscale <- function(y10m10, an = "last", rf = NULL){
 
     ind0 <- stringr::str_split(xn[which(startsWith(xn, "spot_"))], "_", simplify = TRUE)
     indices <- ind0[, ncol(ind0)]
-    x <- md_predicteurs(res = 1, sentinel = FALSE, copernicus = FALSE,
+    x <- data_predicteurs(res = 1, sentinel = FALSE, copernicus = FALSE,
                         insol = FALSE, dendro = FALSE,
                         spot_date = an,
                         topo = (sum(stringr::str_detect(xn, "topo_")) > 0),
