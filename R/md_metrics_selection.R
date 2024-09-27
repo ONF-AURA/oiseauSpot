@@ -8,14 +8,14 @@
 #' @return nom des variables sélectionnées
 #' @export
 #'
-md_metrics_selection <- function(data, y){
+md_metrics_selection <- function(data, y, big=FALSE){
 
   data$y <- data[[y]]
 
   if(y != "y") data[[y]] <- NULL
 
 
-  rg <- leaps::regsubsets(y ~ ., data = data)
+  rg <- leaps::regsubsets(y ~ ., data = data, really.big = big)
   reg.summary = summary(rg)
 
   # par(mfrow=c(2 ,2))

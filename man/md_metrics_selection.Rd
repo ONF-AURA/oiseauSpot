@@ -4,7 +4,7 @@
 \alias{md_metrics_selection}
 \title{Sélection de variables numériques}
 \usage{
-md_metrics_selection(data, y)
+md_metrics_selection(data, y, big = FALSE)
 }
 \arguments{
 \item{data}{dataframe}
